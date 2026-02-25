@@ -98,6 +98,16 @@ export default function App() {
   const handUnsubRef = useRef(null);
   const codeRef = useRef('');
 
+  // Drag and drop state
+  const [dragCard, setDragCard] = useState(null); // { id, groupIdx, cardIdx }
+  const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
+  const [dropTarget, setDropTarget] = useState(null); // { groupIdx, position }
+  const isDragging = useRef(false);
+  const dragTimeout = useRef(null);
+  const startPos = useRef({ x: 0, y: 0 });
+  const groupRefs = useRef([]);
+  const cardRefs = useRef({});
+
   // Clean up listeners
   useEffect(() => {
     return () => {
@@ -449,6 +459,110 @@ export default function App() {
   }
   function getGCards(gids) { return gids.map(id => hand.find(c => c.id === id)).filter(Boolean); }
 
+  // ── Drag and Drop ──
+  function findDropTarget(x, y) {
+    for (let gi = 0; gi < groupRefs.current.length; gi++) {
+      const groupEl = groupRefs.current[gi];
+      if (!groupEl) continue;
+      const rect = groupEl.getBoundingClientRect();
+      // Expand hit area vertically
+      if (y >= rect.top - 10 && y <= rect.bottom + 10 && x >= rect.left - 10 && x <= rect.right + 10) {
+        // Find position within group
+        const gids = groups[gi] || [];
+        let pos = gids.length;
+        for (let ci = 0; ci < gids.length; ci++) {
+          const cardEl = cardRefs.current[gids[ci]];
+          if (!cardEl) continue;
+          const cr = cardEl.getBoundingClientRect();
+          if (x < cr.left + cr.width / 2) { pos = ci; break; }
+        }
+        return { groupIdx: gi, position: pos };
+      }
+    }
+    // Check if below all groups → new group
+    const lastGroup = groupRefs.current[groupRefs.current.length - 1];
+    if (lastGroup) {
+      const lr = lastGroup.getBoundingClientRect();
+      if (y > lr.bottom) return { groupIdx: -1, position: 0 }; // new group
+    }
+    return null;
+  }
+
+  function handleDragStart(e, cardId, groupIdx, cardIdx) {
+    const touch = e.touches ? e.touches[0] : e;
+    startPos.current = { x: touch.clientX, y: touch.clientY };
+
+    dragTimeout.current = setTimeout(() => {
+      isDragging.current = true;
+      setDragCard({ id: cardId, groupIdx, cardIdx });
+      setDragPos({ x: touch.clientX, y: touch.clientY });
+      document.body.classList.add('is-dragging');
+      if (navigator.vibrate) navigator.vibrate(30);
+    }, 200); // 200ms hold to start drag
+  }
+
+  function handleDragMove(e) {
+    if (!isDragging.current) {
+      // Cancel drag if moved too far before timeout
+      const touch = e.touches ? e.touches[0] : e;
+      const dx = Math.abs(touch.clientX - startPos.current.x);
+      const dy = Math.abs(touch.clientY - startPos.current.y);
+      if (dx > 10 || dy > 10) {
+        clearTimeout(dragTimeout.current);
+      }
+      return;
+    }
+    e.preventDefault();
+    const touch = e.touches ? e.touches[0] : e;
+    setDragPos({ x: touch.clientX, y: touch.clientY });
+    setDropTarget(findDropTarget(touch.clientX, touch.clientY));
+  }
+
+  function handleDragEnd() {
+    clearTimeout(dragTimeout.current);
+    document.body.classList.remove('is-dragging');
+    if (!isDragging.current || !dragCard) {
+      isDragging.current = false;
+      setDragCard(null);
+      setDropTarget(null);
+      return;
+    }
+
+    if (dropTarget && dragCard) {
+      const { id, groupIdx: srcGi } = dragCard;
+      const { groupIdx: tgtGi, position: tgtPos } = dropTarget;
+
+      let ng = groups.map(g => [...g]);
+
+      if (tgtGi === -1) {
+        // Drop to new group
+        ng = ng.map(g => g.filter(cid => cid !== id));
+        ng.push([id]);
+      } else if (tgtGi === srcGi) {
+        // Reorder within same group
+        const g = ng[srcGi].filter(cid => cid !== id);
+        const insertAt = Math.min(tgtPos, g.length);
+        g.splice(insertAt, 0, id);
+        ng[srcGi] = g;
+      } else {
+        // Move to different group
+        ng = ng.map(g => g.filter(cid => cid !== id));
+        const insertAt = Math.min(tgtPos, ng[tgtGi]?.length || 0);
+        if (ng[tgtGi]) {
+          ng[tgtGi].splice(insertAt, 0, id);
+        }
+      }
+
+      ng = ng.filter(g => g.length > 0);
+      setGroups(ng);
+      savePlayerHand(roomCode, myId, hand, ng);
+    }
+
+    isDragging.current = false;
+    setDragCard(null);
+    setDropTarget(null);
+  }
+
   // ── Derived ──
   const myIdx = gs?.players?.findIndex(p => p.id === myId) ?? -1;
   const isHost = myIdx === 0;
@@ -712,12 +826,21 @@ export default function App() {
         {isMyTurn && !drawn && <p style={{ textAlign: 'center', color: '#a0c890', fontSize: 12, margin: '2px 0' }}>↑ Tap a pile to draw ↑</p>}
 
         {/* Hand */}
-        <div style={{ flex: 1, padding: '6px 10px', overflowY: 'auto', paddingBottom: 150 }}>
+        <div style={{ flex: 1, padding: '6px 10px', overflowY: 'auto', paddingBottom: 150 }}
+          onTouchMove={handleDragMove} onTouchEnd={handleDragEnd}
+          onMouseMove={handleDragMove} onMouseUp={handleDragEnd}>
           {groups.map((gids, gi) => {
             const cards = getGCards(gids);
             const m = cards.length >= 3 ? validateMeld(cards, cut) : { ok: false };
+            const isDropHere = dropTarget && dropTarget.groupIdx === gi;
             return (
-              <div key={gi} style={{ marginBottom: 10 }}>
+              <div key={gi} ref={el => groupRefs.current[gi] = el}
+                style={{
+                  marginBottom: 10, padding: '6px 6px 8px', borderRadius: 10,
+                  background: isDropHere ? 'rgba(74,222,128,0.08)' : 'transparent',
+                  border: '1.5px dashed ' + (isDropHere ? 'rgba(74,222,128,0.4)' : 'transparent'),
+                  transition: 'all 0.15s',
+                }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                   <span style={{ color: m.ok ? '#4ade80' : '#7a9a6a', fontSize: 10, letterSpacing: 1, fontWeight: 600 }}>
                     {m.ok ? (m.type === 'pure' ? '✓ PURE SEQ' : m.type === 'impure' ? '✓ SEQUENCE' : '✓ SET') : 'GROUP ' + (gi + 1)}
@@ -729,25 +852,83 @@ export default function App() {
                     }}>+ here</button>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                  {cards.map(card => (
-                    <div key={card.id} style={{ position: 'relative' }}>
-                      <Card card={card} cutCard={cut} selected={sel.has(card.id)} onClick={() => toggleSel(card.id)} small />
-                      {isMyTurn && drawn && !sel.has(card.id) && (
-                        <button onClick={e => { e.stopPropagation(); discardCard(card.id); }} style={{
-                          position: 'absolute', top: -5, right: -5, width: 16, height: 16,
-                          borderRadius: 8, background: '#c0392b', border: 'none', color: '#fff',
-                          fontSize: 9, cursor: 'pointer', display: 'flex', alignItems: 'center',
-                          justifyContent: 'center', fontWeight: 700,
-                        }}>✕</button>
-                      )}
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', minHeight: 40 }}>
+                  {cards.map((card, ci) => {
+                    const beingDragged = dragCard && dragCard.id === card.id;
+                    const showInsertBefore = isDropHere && dropTarget.position === ci;
+                    return (
+                      <div key={card.id} style={{ display: 'flex', alignItems: 'center' }}>
+                        {showInsertBefore && (
+                          <div style={{
+                            width: 4, height: 56, borderRadius: 2,
+                            background: '#4ade80', marginRight: 2, flexShrink: 0,
+                            boxShadow: '0 0 8px rgba(74,222,128,0.5)',
+                          }} />
+                        )}
+                        <div ref={el => cardRefs.current[card.id] = el}
+                          style={{
+                            position: 'relative',
+                            opacity: beingDragged ? 0.3 : 1,
+                            transition: 'opacity 0.1s',
+                          }}
+                          onTouchStart={e => handleDragStart(e, card.id, gi, ci)}
+                          onMouseDown={e => handleDragStart(e, card.id, gi, ci)}
+                        >
+                          <Card card={card} cutCard={cut} selected={sel.has(card.id)}
+                            onClick={() => { if (!isDragging.current) toggleSel(card.id); }} small />
+                          {isMyTurn && drawn && !sel.has(card.id) && !dragCard && (
+                            <button onClick={e => { e.stopPropagation(); discardCard(card.id); }} style={{
+                              position: 'absolute', top: -5, right: -5, width: 16, height: 16,
+                              borderRadius: 8, background: '#c0392b', border: 'none', color: '#fff',
+                              fontSize: 9, cursor: 'pointer', display: 'flex', alignItems: 'center',
+                              justifyContent: 'center', fontWeight: 700,
+                            }}>✕</button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* Insert indicator at end of group */}
+                  {isDropHere && dropTarget.position >= cards.length && (
+                    <div style={{
+                      width: 4, height: 56, borderRadius: 2,
+                      background: '#4ade80', marginLeft: 2, flexShrink: 0,
+                      boxShadow: '0 0 8px rgba(74,222,128,0.5)',
+                    }} />
+                  )}
                 </div>
               </div>
             );
           })}
+          {/* New group drop zone */}
+          {dragCard && (
+            <div style={{
+              marginTop: 4, padding: '12px', borderRadius: 10,
+              border: '1.5px dashed ' + (dropTarget && dropTarget.groupIdx === -1 ? 'rgba(74,222,128,0.5)' : 'rgba(255,255,255,0.1)'),
+              background: dropTarget && dropTarget.groupIdx === -1 ? 'rgba(74,222,128,0.08)' : 'rgba(255,255,255,0.02)',
+              textAlign: 'center', color: dropTarget && dropTarget.groupIdx === -1 ? '#4ade80' : '#556655',
+              fontSize: 11, transition: 'all 0.15s',
+            }}>
+              + Drop here for new group
+            </div>
+          )}
         </div>
+
+        {/* Floating ghost card while dragging */}
+        {dragCard && (() => {
+          const card = hand.find(c => c.id === dragCard.id);
+          if (!card) return null;
+          return (
+            <div style={{
+              position: 'fixed', left: dragPos.x - 22, top: dragPos.y - 32,
+              zIndex: 9999, pointerEvents: 'none',
+              transform: 'scale(1.15) rotate(-3deg)',
+              filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.5))',
+            }}>
+              <Card card={card} cutCard={cut} small glow />
+            </div>
+          );
+        })()}
 
         {/* Actions */}
         <div style={{
@@ -758,6 +939,14 @@ export default function App() {
           <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
             {sel.size >= 2 && <button onClick={makeGroup} style={abtn('#2980b9')}>Group ({sel.size})</button>}
             {sel.size > 0 && <button onClick={() => setSel(new Set())} style={abtn('#7f8c8d')}>Deselect</button>}
+            <button onClick={() => {
+              const sorted = sortHand(hand);
+              const ng = [sorted.map(c => c.id)];
+              setHand(sorted);
+              setGroups(ng);
+              setSel(new Set());
+              savePlayerHand(roomCode, myId, sorted, ng);
+            }} style={abtn('#2c6e49')}>Sort</button>
             <button onClick={ungroupAll} style={abtn('#8e6a3a')}>Ungroup</button>
             {isMyTurn && drawn && (
               <button onClick={declareShow} style={{ ...abtn('#d4a853'), background: 'linear-gradient(135deg,#d4a853,#b8862d)', color: '#1a1a2e' }}>
@@ -765,11 +954,11 @@ export default function App() {
               </button>
             )}
           </div>
-          {isMyTurn && drawn && (
-            <p style={{ color: '#7a9a6a', fontSize: 10, textAlign: 'center', margin: '6px 0 0' }}>
-              Tap ✕ to discard · Select 1 + SHOW to declare
-            </p>
-          )}
+          <p style={{ color: '#7a9a6a', fontSize: 10, textAlign: 'center', margin: '6px 0 0' }}>
+            {isMyTurn && drawn
+              ? 'Tap ✕ to discard · Select 1 + SHOW to declare'
+              : 'Hold & drag cards to rearrange · Tap to select'}
+          </p>
         </div>
       </div>
     );

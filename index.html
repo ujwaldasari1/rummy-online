@@ -12,6 +12,9 @@
       body { background: #0a1628; overflow-x: hidden; }
       @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
       @keyframes spin { to { transform: rotate(360deg); } }
+      .draggable { touch-action: manipulation; }
+      body.is-dragging { overflow: hidden !important; touch-action: none; }
+      body.is-dragging * { user-select: none !important; -webkit-user-select: none !important; }
     </style>
   </head>
   <body>
