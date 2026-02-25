@@ -40,19 +40,22 @@ export function sortHand(cards) {
   });
 }
 
+// Sort within a group by face value only (jokers last)
+export function sortGroupByValue(cards) {
+  return [...cards].sort((a, b) => {
+    if (a.nat !== b.nat) return a.nat ? 1 : -1;
+    if (a.nat && b.nat) return 0;
+    return RANK_ORDER[a.rank] - RANK_ORDER[b.rank];
+  });
+}
+
 // ─── Joker helpers ───────────────────────────────────────────────────
 export function isWild(card, cut) {
   if (!cut || card.nat || cut.nat) return false;
   return card.rank === cut.rank && SUIT_COLOR_GROUP[card.suit] !== SUIT_COLOR_GROUP[cut.suit];
 }
-
-export function isJkr(card, cut) {
-  return card.nat || isWild(card, cut);
-}
-
-export function cardVal(c) {
-  return c.nat ? 0 : (RANK_VALUES[c.rank] || 0);
-}
+export function isJkr(card, cut) { return card.nat || isWild(card, cut); }
+export function cardVal(c) { return c.nat ? 0 : (RANK_VALUES[c.rank] || 0); }
 
 // ─── Meld Validation ─────────────────────────────────────────────────
 export function isSeq(cards, cut) {
@@ -62,10 +65,7 @@ export function isSeq(cards, cut) {
   if (!nj.length) return { ok: false, pure: false };
   const suits = new Set(nj.map(c => c.suit));
   if (suits.size > 1) return { ok: false, pure: false };
-
   const sorted = [...nj].sort((a, b) => RANK_ORDER[a.rank] - RANK_ORDER[b.rank]);
-
-  // Normal order
   let gaps = 0, dup = false;
   for (let i = 1; i < sorted.length; i++) {
     const d = RANK_ORDER[sorted[i].rank] - RANK_ORDER[sorted[i - 1].rank];
@@ -76,8 +76,6 @@ export function isSeq(cards, cut) {
     const mn = RANK_ORDER[sorted[0].rank], mx = RANK_ORDER[sorted[sorted.length - 1].rank];
     if (mx - mn + 1 === nj.length + gaps) return { ok: true, pure: !jk.length };
   }
-
-  // Ace-high
   if (!dup && nj.some(c => c.rank === 'A')) {
     const hs = [...nj].sort((a, b) =>
       (a.rank === 'A' ? 14 : RANK_ORDER[a.rank]) - (b.rank === 'A' ? 14 : RANK_ORDER[b.rank])
@@ -125,29 +123,17 @@ export function validateShow(groups, cut) {
 export function calcPenalty(groups, cut) {
   const vs = groups.map(g => ({ cards: g, ...validateMeld(g, cut) }));
   const hasPure = vs.some(v => v.type === 'pure');
-
-  // No pure sequence at all = count ALL cards, cap at 80
   if (!hasPure) {
     let total = 0;
     for (const v of vs) total += v.cards.reduce((s, c) => s + cardVal(c), 0);
     return Math.min(total, MAX_PENALTY);
   }
-
-  // Check if player has a second sequence (pure or impure)
   const seqCount = vs.filter(v => v.type === 'pure' || v.type === 'impure').length;
   const hasSecondSeq = seqCount >= 2;
-
   let p = 0;
   for (const v of vs) {
-    if (v.type === 'pure' || v.type === 'impure') {
-      // Pure sequences always excluded. Impure sequences excluded too.
-      continue;
-    }
-    if (v.type === 'set' && hasSecondSeq) {
-      // Sets only excluded if player has pure + second sequence
-      continue;
-    }
-    // Count all cards in this group as penalty
+    if (v.type === 'pure' || v.type === 'impure') continue;
+    if (v.type === 'set' && hasSecondSeq) continue;
     p += v.cards.reduce((s, c) => s + cardVal(c), 0);
   }
   return Math.min(p, MAX_PENALTY);
@@ -159,14 +145,12 @@ export function dealNewRound(state, dealerIdx) {
   let idx = 0;
   const active = state.players.filter(p => !p.eliminated);
   if (active.length <= 1) { state.phase = 'gameOver'; return state; }
-
   state.players = state.players.map(p => {
     if (p.eliminated) return { ...p, hand: [], groups: [] };
     const h = sortHand(deck.slice(idx, idx + 13));
     idx += 13;
     return { ...p, hand: h, groups: [h.map(c => c.id)] };
   });
-
   const rem = deck.slice(idx);
   const open = rem.pop();
   state.stockPile = rem;
@@ -177,21 +161,17 @@ export function dealNewRound(state, dealerIdx) {
   state.roundResults = null;
   state.invalidShow = false;
   state.drawn = false;
-  state.hasDrawnOnce = [];  // Track players who have drawn at least once this round
-  state.packed = [];         // Track players who dropped/packed this round
+  state.hasDrawnOnce = [];
+  state.packed = [];
+  state.discardLog = [];
   state._round = (state._round || 0) + 1;
-
-  // Cutter = active player before dealer
   const ai = state.players.map((p, i) => p.eliminated ? -1 : i).filter(i => i >= 0);
   const dp = ai.indexOf(dealerIdx);
   const cp = dp <= 0 ? ai.length - 1 : dp - 1;
   state.cutterIdx = ai[cp];
-
-  // First player after dealer
   const fp = (dp + 1) % ai.length;
   state.currentPlayer = ai[fp];
   state.phase = 'cut';
-
   return state;
 }
 
@@ -201,7 +181,6 @@ export function genCode() {
   for (let i = 0; i < 5; i++) c += chars[Math.floor(Math.random() * chars.length)];
   return c;
 }
-
 export function genId() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }

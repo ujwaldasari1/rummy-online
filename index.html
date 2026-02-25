@@ -5,8 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#0a1628" />
-    <title>Rummy Online</title>
+    <meta name="description" content="Chalaragers - Online Multiplayer Indian Rummy" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <title>Chalaragers · Indian Rummy</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
       body { background: #0a1628; overflow-x: hidden; }
@@ -15,6 +19,10 @@
       .draggable { touch-action: manipulation; }
       body.is-dragging { overflow: hidden !important; touch-action: none; }
       body.is-dragging * { user-select: none !important; -webkit-user-select: none !important; }
+      /* Scrollbar styling */
+      ::-webkit-scrollbar { width: 4px; }
+      ::-webkit-scrollbar-thumb { background: rgba(212,168,83,0.3); border-radius: 4px; }
+      ::-webkit-scrollbar-track { background: transparent; }
     </style>
   </head>
   <body>

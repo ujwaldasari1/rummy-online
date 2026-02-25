@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   saveGameState, savePlayerHand, loadPlayerHand, saveFullDeal,
   loadGameState, onGameStateChange, onPlayerHandChange,
@@ -7,7 +7,7 @@ import {
 import {
   SUITS, SUIT_COLORS, SUIT_COLOR_GROUP, OPPOSITE_SUITS, RANKS,
   RANK_VALUES, RANK_ORDER, MAX_PENALTY, ELIM_SCORE, DROP_PENALTY,
-  createDeck, shuffle, sortHand, isWild, isJkr, cardVal,
+  createDeck, shuffle, sortHand, sortGroupByValue, isWild, isJkr, cardVal,
   validateMeld, validateShow, calcPenalty, dealNewRound,
   genCode, genId,
 } from './game.js';
@@ -20,9 +20,9 @@ function getMyId() {
   return id;
 }
 
-// ─── Card Component ──────────────────────────────────────────────────
+// ─── Card Component (bigger) ─────────────────────────────────────────
 function Card({ card, selected, onClick, small, faceDown, cutCard, glow, style: sx }) {
-  const w = small ? 44 : 58, h = small ? 64 : 84;
+  const w = small ? 54 : 68, h = small ? 78 : 98;
   if (faceDown) return (
     <div onClick={onClick} style={{
       width: w, height: h, borderRadius: 8,
@@ -30,7 +30,7 @@ function Card({ card, selected, onClick, small, faceDown, cutCard, glow, style: 
       cursor: onClick ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center',
       boxShadow: '0 2px 8px rgba(0,0,0,0.3)', flexShrink: 0,
       backgroundImage: 'repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(255,255,255,0.03) 4px,rgba(255,255,255,0.03) 8px)', ...sx
-    }}><span style={{ fontSize: small ? 14 : 20, opacity: 0.4 }}>🂠</span></div>
+    }}><span style={{ fontSize: small ? 16 : 22, opacity: 0.4 }}>🂠</span></div>
   );
   const wild = cutCard && isWild(card, cutCard);
   const clr = card.nat ? '#8e44ad' : SUIT_COLORS[card.suit];
@@ -45,10 +45,10 @@ function Card({ card, selected, onClick, small, faceDown, cutCard, glow, style: 
       transform: selected ? 'translateY(-6px)' : 'none',
       transition: 'all 0.15s', flexShrink: 0, position: 'relative', userSelect: 'none', ...sx
     }}>
-      {wild && <span style={{ position: 'absolute', top: 1, right: 3, fontSize: 7, color: '#d4a853', fontWeight: 800 }}>★</span>}
-      {card.nat ? <span style={{ fontSize: small ? 18 : 26 }}>🃏</span> : <>
-        <span style={{ fontSize: small ? 10 : 13, fontWeight: 800, color: clr, lineHeight: 1, fontFamily: 'Georgia,serif' }}>{card.rank}</span>
-        <span style={{ fontSize: small ? 13 : 18, color: clr, lineHeight: 1 }}>{card.suit}</span>
+      {wild && <span style={{ position: 'absolute', top: 2, right: 4, fontSize: 9, color: '#d4a853', fontWeight: 800 }}>★</span>}
+      {card.nat ? <span style={{ fontSize: small ? 22 : 30 }}>🃏</span> : <>
+        <span style={{ fontSize: small ? 15 : 19, fontWeight: 800, color: clr, lineHeight: 1, fontFamily: 'Georgia,serif' }}>{card.rank}</span>
+        <span style={{ fontSize: small ? 18 : 24, color: clr, lineHeight: 1 }}>{card.suit}</span>
       </>}
     </div>
   );
@@ -81,6 +81,70 @@ function WildBadge({ cut }) {
   );
 }
 
+// ─── Watermark ───────────────────────────────────────────────────────
+function Watermark() {
+  return (
+    <div style={{
+      position: 'fixed', top: '50%', left: '50%',
+      transform: 'translate(-50%, -50%) rotate(-18deg)',
+      fontSize: 52, fontWeight: 900, letterSpacing: 10, fontFamily: "'Georgia',serif",
+      color: 'rgba(255,255,255,0.025)', pointerEvents: 'none', zIndex: 0,
+      whiteSpace: 'nowrap', userSelect: 'none',
+      textShadow: '0 0 60px rgba(212,168,83,0.03)',
+    }}>CHALARAGERS</div>
+  );
+}
+
+// ─── Discard Log Panel ───────────────────────────────────────────────
+function DiscardLog({ log, cutCard }) {
+  const [open, setOpen] = useState(false);
+  if (!log || !log.length) return null;
+  const recent = log.slice(-30).reverse();
+  return (
+    <div style={{ position: 'relative', zIndex: 10 }}>
+      <button onClick={() => setOpen(!open)} style={{
+        padding: '4px 12px', borderRadius: 6, border: '1px solid rgba(212,168,83,0.3)',
+        background: open ? 'rgba(212,168,83,0.15)' : 'rgba(0,0,0,0.3)',
+        color: '#d4a853', fontSize: 10, cursor: 'pointer', fontFamily: "'Georgia',serif",
+        fontWeight: 600, letterSpacing: 1,
+      }}>
+        📋 LOG {open ? '▲' : '▼'}
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', right: 0, marginTop: 4,
+          width: 260, maxHeight: 220, overflowY: 'auto',
+          background: 'rgba(10,22,40,0.96)', border: '1px solid rgba(212,168,83,0.2)',
+          borderRadius: 10, padding: 8, zIndex: 20,
+          boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
+        }}>
+          <div style={{ color: '#8899aa', fontSize: 9, letterSpacing: 1, marginBottom: 6, textAlign: 'center' }}>DISCARD LOG</div>
+          {recent.map((e, i) => {
+            const cardLabel = e.card?.nat ? '🃏' : (e.card?.rank || '?') + (e.card?.suit || '');
+            const cardColor = e.card?.nat ? '#8e44ad' : SUIT_COLORS[e.card?.suit] || '#999';
+            return (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '3px 6px',
+                borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 11,
+              }}>
+                <span style={{ color: e.action === 'picked' ? '#4ade80' : '#e8a85c', fontWeight: 700, fontSize: 9, width: 46, flexShrink: 0 }}>
+                  {e.action === 'picked' ? '⬆ PICK' : '⬇ TOSS'}
+                </span>
+                <span style={{ color: '#b0c4d8', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.player}</span>
+                <span style={{
+                  fontWeight: 800, fontSize: 12, color: cardColor,
+                  background: 'rgba(255,255,255,0.9)', padding: '1px 5px', borderRadius: 4, fontFamily: 'Georgia,serif'
+                }}>{cardLabel}</span>
+              </div>
+            );
+          })}
+          {!recent.length && <div style={{ color: '#556', fontSize: 11, textAlign: 'center', padding: 12 }}>No activity yet</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main App ────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState('home');
@@ -98,17 +162,16 @@ export default function App() {
   const handUnsubRef = useRef(null);
   const codeRef = useRef('');
 
-  // Drag and drop state
-  const [dragCard, setDragCard] = useState(null); // { id, groupIdx, cardIdx }
+  // Drag state
+  const [dragCard, setDragCard] = useState(null);
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
-  const [dropTarget, setDropTarget] = useState(null); // { groupIdx, position }
+  const [dropTarget, setDropTarget] = useState(null);
   const isDragging = useRef(false);
   const dragTimeout = useRef(null);
   const startPos = useRef({ x: 0, y: 0 });
   const groupRefs = useRef([]);
   const cardRefs = useRef({});
 
-  // Clean up listeners
   useEffect(() => {
     return () => {
       if (unsubRef.current) unsubRef.current();
@@ -116,16 +179,12 @@ export default function App() {
     };
   }, []);
 
-  // Subscribe to game state changes
   function subscribeToGame(code) {
     if (unsubRef.current) unsubRef.current();
     codeRef.current = code;
-    unsubRef.current = onGameStateChange(code, (state) => {
-      setGs(state);
-    });
+    unsubRef.current = onGameStateChange(code, (state) => { setGs(state); });
   }
 
-  // Subscribe to my hand changes
   function subscribeToHand(code, pid) {
     if (handUnsubRef.current) handUnsubRef.current();
     handUnsubRef.current = onPlayerHandChange(code, pid, (data) => {
@@ -139,8 +198,7 @@ export default function App() {
   // ── Create Room ──
   async function createRoom() {
     if (!myName.trim()) { setErr('Enter your name'); return; }
-    setLoading(true);
-    setErr('');
+    setLoading(true); setErr('');
     try {
       const code = genCode();
       const state = {
@@ -156,41 +214,47 @@ export default function App() {
       subscribeToGame(code);
       setGs(state);
       setScreen('lobby');
-    } catch (e) {
-      setErr('Failed to create room: ' + e.message);
-    }
+    } catch (e) { setErr('Failed to create room: ' + e.message); }
     setLoading(false);
   }
 
-  // ── Join Room ──
+  // ── Join Room (supports late join) ──
   async function joinRoom() {
     if (!myName.trim()) { setErr('Enter your name'); return; }
     if (!joinCode.trim()) { setErr('Enter room code'); return; }
-    setLoading(true);
-    setErr('');
+    setLoading(true); setErr('');
     try {
       const code = joinCode.trim().toUpperCase();
       const state = await loadGameState(code);
       if (!state) { setErr('Room not found!'); setLoading(false); return; }
-      if (state.phase !== 'lobby') {
-        // Check if player is reconnecting
-        const existingPlayer = state.players?.find(p => p.id === myId);
-        if (existingPlayer) {
-          setRoomCode(code);
-          subscribeToGame(code);
-          subscribeToHand(code, myId);
-          setGs(state);
-          setScreen(state.phase === 'lobby' ? 'lobby' : 'game');
-          setLoading(false);
-          return;
-        }
-        setErr('Game already started!');
+
+      // Reconnecting player
+      const existingPlayer = state.players?.find(p => p.id === myId);
+      if (existingPlayer) {
+        setRoomCode(code);
+        subscribeToGame(code);
+        subscribeToHand(code, myId);
+        setGs(state);
+        setScreen(state.phase === 'lobby' ? 'lobby' : 'game');
         setLoading(false);
         return;
       }
-      if ((state.players?.length || 0) >= 8) { setErr('Room is full!'); setLoading(false); return; }
 
-      // Add player if not already in
+      // Late join — spectator until next round
+      if (state.phase !== 'lobby') {
+        if ((state.players?.length || 0) >= 8) { setErr('Room is full!'); setLoading(false); return; }
+        state.players.push({ id: myId, name: myName.trim(), score: 0, eliminated: false, spectator: true });
+        await saveGameState(code, state);
+        setRoomCode(code);
+        subscribeToGame(code);
+        subscribeToHand(code, myId);
+        setGs(state);
+        setScreen('game');
+        setLoading(false);
+        return;
+      }
+
+      if ((state.players?.length || 0) >= 8) { setErr('Room is full!'); setLoading(false); return; }
       if (!state.players.some(p => p.id === myId)) {
         state.players.push({ id: myId, name: myName.trim(), score: 0, eliminated: false });
         await saveGameState(code, state);
@@ -199,9 +263,7 @@ export default function App() {
       subscribeToGame(code);
       setGs(state);
       setScreen('lobby');
-    } catch (e) {
-      setErr('Failed to join: ' + e.message);
-    }
+    } catch (e) { setErr('Failed to join: ' + e.message); }
     setLoading(false);
   }
 
@@ -227,9 +289,7 @@ export default function App() {
       state.phase = 'play';
       state._ts = Date.now();
       await saveGameState(roomCode, state);
-    } catch (e) {
-      setErr('Error: ' + e.message);
-    }
+    } catch (e) { setErr('Error: ' + e.message); }
     setLoading(false);
   }
 
@@ -240,7 +300,6 @@ export default function App() {
       if (!state) return;
       const myIdx = state.players.findIndex(p => p.id === myId);
       if (state.currentPlayer !== myIdx || state.drawn) return;
-
       let card;
       if (!state.stockPile || state.stockPile.length === 0) {
         const ns = shuffle(state.discardPile.slice(0, -1));
@@ -250,26 +309,23 @@ export default function App() {
       } else {
         card = state.stockPile.pop();
       }
-
       state.drawn = true;
       if (!state.hasDrawnOnce) state.hasDrawnOnce = [];
       if (!state.hasDrawnOnce.includes(myId)) state.hasDrawnOnce.push(myId);
       state._ts = Date.now();
       await saveGameState(roomCode, state);
 
-      // Update my hand locally + in Firebase
+      // Add card to GROUP 1 (first group)
       const myHand = await loadPlayerHand(roomCode, myId);
       const newHand = [...(myHand?.hand || hand), card];
       const newGroups = [...(myHand?.groups || groups)];
       if (newGroups.length > 0) {
-        newGroups[newGroups.length - 1] = [...newGroups[newGroups.length - 1], card.id];
+        newGroups[0] = [card.id, ...newGroups[0]];
       } else {
         newGroups.push([card.id]);
       }
       await savePlayerHand(roomCode, myId, newHand, newGroups);
-    } catch (e) {
-      setErr('Error: ' + e.message);
-    }
+    } catch (e) { setErr('Error: ' + e.message); }
   }
 
   // ── Draw from Discard ──
@@ -279,107 +335,94 @@ export default function App() {
       if (!state || !state.discardPile?.length) return;
       const myIdx = state.players.findIndex(p => p.id === myId);
       if (state.currentPlayer !== myIdx || state.drawn) return;
-
       const card = state.discardPile.pop();
+
+      // Log the pickup
+      if (!state.discardLog) state.discardLog = [];
+      state.discardLog.push({ player: state.players[myIdx].name, card, action: 'picked' });
+
       state.drawn = true;
       if (!state.hasDrawnOnce) state.hasDrawnOnce = [];
       if (!state.hasDrawnOnce.includes(myId)) state.hasDrawnOnce.push(myId);
       state._ts = Date.now();
       await saveGameState(roomCode, state);
 
+      // Add card to GROUP 1
       const myHand = await loadPlayerHand(roomCode, myId);
       const newHand = [...(myHand?.hand || hand), card];
       const newGroups = [...(myHand?.groups || groups)];
       if (newGroups.length > 0) {
-        newGroups[newGroups.length - 1] = [...newGroups[newGroups.length - 1], card.id];
+        newGroups[0] = [card.id, ...newGroups[0]];
       } else {
         newGroups.push([card.id]);
       }
       await savePlayerHand(roomCode, myId, newHand, newGroups);
-    } catch (e) {
-      setErr('Error: ' + e.message);
-    }
+    } catch (e) { setErr('Error: ' + e.message); }
   }
 
-  // ── Drop / Pack (only on first turn of round, before drawing) ──
+  // ── Drop / Pack ──
   async function dropPack() {
     try {
       const state = await loadGameState(roomCode);
       if (!state || state.drawn) return;
       const myIdx = state.players.findIndex(p => p.id === myId);
       if (state.currentPlayer !== myIdx) return;
-
-      // Only allowed if player has NEVER drawn this round
       if ((state.hasDrawnOnce || []).includes(myId)) {
-        setErr("Can't pack after you've drawn a card!");
-        return;
+        setErr("Can't pack after drawing!"); return;
       }
-
-      // Add 25 penalty
       const newScore = state.players[myIdx].score + DROP_PENALTY;
       state.players[myIdx].score = newScore;
       state.players[myIdx].eliminated = newScore >= ELIM_SCORE;
-
-      // Mark player as packed
       if (!state.packed) state.packed = [];
       state.packed.push(myId);
 
-      // Find remaining active non-packed players
       const ai = state.players.map((p, i) => (!p.eliminated ? i : -1)).filter(i => i >= 0);
       const playing = ai.filter(i => !(state.packed || []).includes(state.players[i].id));
 
       if (playing.length <= 1) {
-        // Only one player left — they win the round
         const winnerId = playing.length === 1 ? playing[0] : null;
         state.roundResults = state.players.map((p, i) => {
-          if (p.eliminated && !(state.packed || []).includes(p.id)) {
-            return { name: p.name, penalty: 0, elim: true, wasElim: false };
-          }
-          if (winnerId !== null && i === winnerId) {
-            return { name: p.name, penalty: 0, newScore: p.score, elim: false, wasElim: false, winner: true };
-          }
-          if ((state.packed || []).includes(p.id)) {
-            return { name: p.name, penalty: DROP_PENALTY, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true };
-          }
+          if (p.eliminated && !(state.packed || []).includes(p.id)) return { name: p.name, penalty: 0, elim: true, wasElim: false };
+          if (winnerId !== null && i === winnerId) return { name: p.name, penalty: 0, newScore: p.score, elim: false, wasElim: false, winner: true };
+          if ((state.packed || []).includes(p.id)) return { name: p.name, penalty: DROP_PENALTY, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true };
           return { name: p.name, penalty: 0, newScore: p.score, elim: false, wasElim: false };
         });
         state.declarer = winnerId;
         state.phase = 'roundEnd';
         state.invalidShow = false;
       } else {
-        // Next active non-packed player
         const ci = ai.indexOf(myIdx);
         let next = ci;
-        do {
-          next = (next + 1) % ai.length;
-        } while ((state.packed || []).includes(state.players[ai[next]].id) || state.players[ai[next]].eliminated);
+        do { next = (next + 1) % ai.length; }
+        while ((state.packed || []).includes(state.players[ai[next]].id) || state.players[ai[next]].eliminated);
         state.currentPlayer = ai[next];
       }
-
       state.drawn = false;
       state._ts = Date.now();
       await saveGameState(roomCode, state);
       setErr('');
-    } catch (e) {
-      setErr('Error: ' + e.message);
-    }
+    } catch (e) { setErr('Error: ' + e.message); }
   }
 
-  // ── Discard ──
-  async function discardCard(cardId) {
+  // ── Discard (select 1, tap DISCARD) ──
+  async function discardSelected() {
+    if (sel.size !== 1) { setErr('Select exactly 1 card to discard'); return; }
+    const cardId = [...sel][0];
     try {
       const state = await loadGameState(roomCode);
       if (!state || !state.drawn) return;
       const myIdx = state.players.findIndex(p => p.id === myId);
       if (state.currentPlayer !== myIdx) return;
-
       const card = hand.find(c => c.id === cardId);
       if (!card) return;
 
       if (!state.discardPile) state.discardPile = [];
       state.discardPile.push(card);
 
-      // Next active non-packed player
+      // Log the discard
+      if (!state.discardLog) state.discardLog = [];
+      state.discardLog.push({ player: state.players[myIdx].name, card, action: 'threw' });
+
       const ai = state.players.map((p, i) => p.eliminated ? -1 : i).filter(i => i >= 0);
       const playing = ai.filter(i => !(state.packed || []).includes(state.players[i].id));
       const ci = playing.indexOf(myIdx);
@@ -388,14 +431,11 @@ export default function App() {
       state._ts = Date.now();
       await saveGameState(roomCode, state);
 
-      // Update my hand
       const newHand = hand.filter(c => c.id !== cardId);
       const newGroups = groups.map(g => g.filter(id => id !== cardId)).filter(g => g.length);
       await savePlayerHand(roomCode, myId, newHand, newGroups);
       setSel(new Set());
-    } catch (e) {
-      setErr('Error: ' + e.message);
-    }
+    } catch (e) { setErr('Error: ' + e.message); }
   }
 
   // ── Declare Show ──
@@ -419,7 +459,6 @@ export default function App() {
       state.discardPile.push(discC);
 
       if (result.valid) {
-        // Calculate penalties for all other players (skip packed — they already got 25)
         const penaltyPromises = state.players.map(async (p, i) => {
           if (p.eliminated || i === myIdx) return { penalty: 0 };
           if ((state.packed || []).includes(p.id)) return { penalty: 0, packed: true };
@@ -431,19 +470,14 @@ export default function App() {
           return { penalty: calcPenalty(pg, state.cutCard) };
         });
         const penalties = await Promise.all(penaltyPromises);
-
         state.roundResults = state.players.map((p, i) => {
           if (p.eliminated) return { name: p.name, penalty: 0, elim: true, wasElim: false };
           if (i === myIdx) return { name: p.name, penalty: 0, elim: false, wasElim: false, winner: true, newScore: p.score };
-          if ((state.packed || []).includes(p.id)) {
-            return { name: p.name, penalty: DROP_PENALTY, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true };
-          }
+          if ((state.packed || []).includes(p.id)) return { name: p.name, penalty: DROP_PENALTY, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true };
           const pen = penalties[i].penalty;
           const ns = p.score + pen;
           return { name: p.name, penalty: pen, newScore: ns, elim: false, wasElim: ns >= ELIM_SCORE };
         });
-
-        // Update scores (don't update packed players — already updated when they packed)
         state.players = state.players.map((p, i) => {
           if (p.eliminated || i === myIdx) return p;
           if ((state.packed || []).includes(p.id)) return p;
@@ -459,14 +493,11 @@ export default function App() {
         state.roundResults = state.players.map((p, i) => {
           if (p.eliminated && i !== myIdx) return { name: p.name, penalty: 0, elim: true, wasElim: false };
           if (i === myIdx) return { name: p.name, penalty: MAX_PENALTY, newScore: ns, elim: false, wasElim: elim, inv: true };
-          if ((state.packed || []).includes(p.id)) {
-            return { name: p.name, penalty: DROP_PENALTY, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true };
-          }
+          if ((state.packed || []).includes(p.id)) return { name: p.name, penalty: DROP_PENALTY, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true };
           return { name: p.name, penalty: 0, newScore: p.score, elim: false, wasElim: false };
         });
         state.invalidShow = true;
       }
-
       state.declarer = myIdx;
       state.phase = 'roundEnd';
       state.drawn = false;
@@ -474,16 +505,16 @@ export default function App() {
       await saveGameState(roomCode, state);
       await savePlayerHand(roomCode, myId, remHand, remGroups);
       setSel(new Set());
-    } catch (e) {
-      setErr('Error: ' + e.message);
-    }
+    } catch (e) { setErr('Error: ' + e.message); }
   }
 
-  // ── Next Round ──
+  // ── Next Round (clears spectator flag) ──
   async function nextRound() {
     try {
       const state = await loadGameState(roomCode);
       if (!state) return;
+      // Promote spectators to active players for new round
+      state.players = state.players.map(p => ({ ...p, spectator: false }));
       const active = state.players.filter(p => !p.eliminated);
       if (active.length <= 1) {
         state.phase = 'gameOver';
@@ -497,11 +528,8 @@ export default function App() {
       state.round = (state.round || 1) + 1;
       dealNewRound(state, nd);
       await saveFullDeal(roomCode, state);
-      setHand([]);
-      setGroups([]);
-    } catch (e) {
-      setErr('Error: ' + e.message);
-    }
+      setHand([]); setGroups([]);
+    } catch (e) { setErr('Error: ' + e.message); }
   }
 
   // ── Local grouping ──
@@ -517,12 +545,30 @@ export default function App() {
     setSel(new Set());
     savePlayerHand(roomCode, myId, hand, ng);
   }
-  function ungroupAll() {
-    const ng = [hand.map(c => c.id)];
-    setGroups(ng);
-    setSel(new Set());
-    savePlayerHand(roomCode, myId, hand, ng);
+
+  // Ungroup: if cards selected → move to group 1, else ungroup all
+  function ungroupAction() {
+    if (sel.size > 0) {
+      // Move selected cards to group 1 (index 0)
+      const ids = [...sel];
+      let ng = groups.map(g => g.filter(id => !sel.has(id)));
+      if (ng.length > 0) {
+        ng[0] = [...ids, ...ng[0]];
+      } else {
+        ng = [ids];
+      }
+      ng = ng.filter(g => g.length);
+      setGroups(ng);
+      setSel(new Set());
+      savePlayerHand(roomCode, myId, hand, ng);
+    } else {
+      const ng = [hand.map(c => c.id)];
+      setGroups(ng);
+      setSel(new Set());
+      savePlayerHand(roomCode, myId, hand, ng);
+    }
   }
+
   function moveToGroup(gi) {
     if (!sel.size) return;
     const ids = [...sel];
@@ -534,6 +580,19 @@ export default function App() {
     setSel(new Set());
     savePlayerHand(roomCode, myId, hand, ng);
   }
+
+  // Sort within each group by face value
+  function sortInGroups() {
+    const ng = groups.map(gids => {
+      const cards = gids.map(id => hand.find(c => c.id === id)).filter(Boolean);
+      const sorted = sortGroupByValue(cards);
+      return sorted.map(c => c.id);
+    });
+    setGroups(ng);
+    setSel(new Set());
+    savePlayerHand(roomCode, myId, hand, ng);
+  }
+
   function getGCards(gids) { return gids.map(id => hand.find(c => c.id === id)).filter(Boolean); }
 
   // ── Drag and Drop ──
@@ -542,9 +601,7 @@ export default function App() {
       const groupEl = groupRefs.current[gi];
       if (!groupEl) continue;
       const rect = groupEl.getBoundingClientRect();
-      // Expand hit area vertically
       if (y >= rect.top - 10 && y <= rect.bottom + 10 && x >= rect.left - 10 && x <= rect.right + 10) {
-        // Find position within group
         const gids = groups[gi] || [];
         let pos = gids.length;
         for (let ci = 0; ci < gids.length; ci++) {
@@ -556,11 +613,10 @@ export default function App() {
         return { groupIdx: gi, position: pos };
       }
     }
-    // Check if below all groups → new group
     const lastGroup = groupRefs.current[groupRefs.current.length - 1];
     if (lastGroup) {
       const lr = lastGroup.getBoundingClientRect();
-      if (y > lr.bottom) return { groupIdx: -1, position: 0 }; // new group
+      if (y > lr.bottom) return { groupIdx: -1, position: 0 };
     }
     return null;
   }
@@ -568,25 +624,21 @@ export default function App() {
   function handleDragStart(e, cardId, groupIdx, cardIdx) {
     const touch = e.touches ? e.touches[0] : e;
     startPos.current = { x: touch.clientX, y: touch.clientY };
-
     dragTimeout.current = setTimeout(() => {
       isDragging.current = true;
       setDragCard({ id: cardId, groupIdx, cardIdx });
       setDragPos({ x: touch.clientX, y: touch.clientY });
       document.body.classList.add('is-dragging');
       if (navigator.vibrate) navigator.vibrate(30);
-    }, 200); // 200ms hold to start drag
+    }, 200);
   }
 
   function handleDragMove(e) {
     if (!isDragging.current) {
-      // Cancel drag if moved too far before timeout
       const touch = e.touches ? e.touches[0] : e;
       const dx = Math.abs(touch.clientX - startPos.current.x);
       const dy = Math.abs(touch.clientY - startPos.current.y);
-      if (dx > 10 || dy > 10) {
-        clearTimeout(dragTimeout.current);
-      }
+      if (dx > 10 || dy > 10) clearTimeout(dragTimeout.current);
       return;
     }
     e.preventDefault();
@@ -599,45 +651,29 @@ export default function App() {
     clearTimeout(dragTimeout.current);
     document.body.classList.remove('is-dragging');
     if (!isDragging.current || !dragCard) {
-      isDragging.current = false;
-      setDragCard(null);
-      setDropTarget(null);
-      return;
+      isDragging.current = false; setDragCard(null); setDropTarget(null); return;
     }
-
     if (dropTarget && dragCard) {
       const { id, groupIdx: srcGi } = dragCard;
       const { groupIdx: tgtGi, position: tgtPos } = dropTarget;
-
       let ng = groups.map(g => [...g]);
-
       if (tgtGi === -1) {
-        // Drop to new group
         ng = ng.map(g => g.filter(cid => cid !== id));
         ng.push([id]);
       } else if (tgtGi === srcGi) {
-        // Reorder within same group
         const g = ng[srcGi].filter(cid => cid !== id);
-        const insertAt = Math.min(tgtPos, g.length);
-        g.splice(insertAt, 0, id);
+        g.splice(Math.min(tgtPos, g.length), 0, id);
         ng[srcGi] = g;
       } else {
-        // Move to different group
         ng = ng.map(g => g.filter(cid => cid !== id));
         const insertAt = Math.min(tgtPos, ng[tgtGi]?.length || 0);
-        if (ng[tgtGi]) {
-          ng[tgtGi].splice(insertAt, 0, id);
-        }
+        if (ng[tgtGi]) ng[tgtGi].splice(insertAt, 0, id);
       }
-
       ng = ng.filter(g => g.length > 0);
       setGroups(ng);
       savePlayerHand(roomCode, myId, hand, ng);
     }
-
-    isDragging.current = false;
-    setDragCard(null);
-    setDropTarget(null);
+    isDragging.current = false; setDragCard(null); setDropTarget(null);
   }
 
   // ── Derived ──
@@ -648,18 +684,12 @@ export default function App() {
   const cut = gs?.cutCard;
   const drawn = gs?.drawn;
 
-  // Auto-subscribe to hand when game starts
   useEffect(() => {
-    if (gs && gs.phase !== 'lobby' && roomCode && myId) {
-      subscribeToHand(roomCode, myId);
-    }
+    if (gs && gs.phase !== 'lobby' && roomCode && myId) subscribeToHand(roomCode, myId);
   }, [gs?.phase, roomCode, myId]);
 
-  // Auto-transition from lobby to game
   useEffect(() => {
-    if (screen === 'lobby' && gs?.phase && gs.phase !== 'lobby') {
-      setScreen('game');
-    }
+    if (screen === 'lobby' && gs?.phase && gs.phase !== 'lobby') setScreen('game');
   }, [gs?.phase, screen]);
 
   // ── Styles ──
@@ -686,15 +716,20 @@ export default function App() {
     alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: font,
   };
 
-  // ────────── RENDER ──────────
+  // ════════════════════════════ RENDER ════════════════════════════
 
   // HOME
   if (screen === 'home') {
     return (
       <div style={{ ...cBase, background: darkBg }}>
-        <div style={{ ...box, padding: '40px 32px' }}>
-          <h1 style={{ color: '#e8d5b7', textAlign: 'center', margin: '0 0 4px', fontSize: 30, fontWeight: 400, letterSpacing: 3 }}>♠ RUMMY ♥</h1>
-          <p style={{ color: '#8899aa', textAlign: 'center', margin: '0 0 28px', fontSize: 12, letterSpacing: 1 }}>ONLINE MULTIPLAYER · INDIAN RUMMY</p>
+        <Watermark />
+        <div style={{ ...box, padding: '40px 32px', position: 'relative', zIndex: 1 }}>
+          <div style={{ textAlign: 'center', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, letterSpacing: 3, color: '#d4a853', fontWeight: 700 }}>♠ ♥ ♦ ♣</span>
+          </div>
+          <h1 style={{ color: '#e8d5b7', textAlign: 'center', margin: '0 0 2px', fontSize: 28, fontWeight: 400, letterSpacing: 4 }}>CHALARAGERS</h1>
+          <p style={{ color: '#8899aa', textAlign: 'center', margin: '0 0 4px', fontSize: 11, letterSpacing: 1 }}>ONLINE MULTIPLAYER · INDIAN RUMMY</p>
+          <p style={{ color: '#556', textAlign: 'center', margin: '0 0 24px', fontSize: 10, letterSpacing: 1 }}>Up to 8 players · 2 decks · 201 elimination</p>
 
           {err && <p style={{ color: '#e74c3c', fontSize: 12, textAlign: 'center', margin: '0 0 12px' }}>{err}</p>}
 
@@ -734,15 +769,14 @@ export default function App() {
   if (screen === 'lobby' || (screen === 'game' && gs?.phase === 'lobby')) {
     return (
       <div style={{ ...cBase, background: darkBg }}>
-        <div style={{ ...box, padding: '36px 32px', textAlign: 'center' }}>
+        <Watermark />
+        <div style={{ ...box, padding: '36px 32px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
           <div style={{ fontSize: 12, color: '#8899aa', letterSpacing: 1, marginBottom: 6 }}>ROOM CODE</div>
           <div style={{ fontSize: 36, color: '#d4a853', fontWeight: 700, letterSpacing: 8, marginBottom: 4 }}>{roomCode}</div>
           <p style={{ color: '#667', fontSize: 12, marginBottom: 24 }}>Share this code with your friends</p>
 
           <div style={{ textAlign: 'left', marginBottom: 24 }}>
-            <div style={{ color: '#b0c4d8', fontSize: 12, letterSpacing: 1, marginBottom: 8 }}>
-              PLAYERS ({gs?.players?.length || 0}/8)
-            </div>
+            <div style={{ color: '#b0c4d8', fontSize: 12, letterSpacing: 1, marginBottom: 8 }}>PLAYERS ({gs?.players?.length || 0}/8)</div>
             {gs?.players?.map((p, i) => (
               <div key={p.id} style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
@@ -776,25 +810,25 @@ export default function App() {
   }
 
   if (!gs) {
-    return (
-      <div style={{ ...cBase, background: darkBg }}>
-        <div style={{ color: '#8899aa', fontSize: 14 }}>Loading... ⏳</div>
-      </div>
-    );
+    return <div style={{ ...cBase, background: darkBg }}><div style={{ color: '#8899aa', fontSize: 14 }}>Loading... ⏳</div></div>;
   }
 
   // CUT JOKER
   if (gs.phase === 'cut') {
     const cutterName = gs.players[gs.cutterIdx]?.name || '?';
     const dealerName = gs.players[gs.dealer]?.name || '?';
+    const meObj = gs.players[myIdx];
+    const amSpectator = meObj?.spectator;
+
     return (
       <div style={{ ...cBase, background: 'linear-gradient(145deg,#0a1628,#1a2a48,#0d1f36)' }}>
-        <div style={{ ...box, padding: '36px 28px', textAlign: 'center' }}>
+        <Watermark />
+        <div style={{ ...box, padding: '36px 28px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
           <div style={{ fontSize: 13, color: '#8899aa', letterSpacing: 1, marginBottom: 4 }}>ROUND {gs.round}</div>
           <h2 style={{ color: '#e8d5b7', fontSize: 22, fontWeight: 400, margin: '0 0 6px', letterSpacing: 2 }}>✂️ CUT THE JOKER</h2>
           <p style={{ color: '#8899aa', fontSize: 12, margin: '0 0 6px' }}>Dealer: <span style={{ color: '#d4a853' }}>{dealerName}</span></p>
           <p style={{ color: '#a0b0c0', fontSize: 13, margin: '0 0 24px' }}>
-            {isCutter ? "Your turn to cut!" : cutterName + " is cutting..."}
+            {amSpectator ? 'Watching — you\'ll play next round!' : isCutter ? "Your turn to cut!" : cutterName + " is cutting..."}
           </p>
 
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24, position: 'relative', height: 100 }}>
@@ -806,7 +840,11 @@ export default function App() {
             ))}
           </div>
 
-          {isCutter ? (
+          {amSpectator ? (
+            <div style={{ color: '#8e6a3a', fontSize: 13, padding: 12, background: 'rgba(142,106,58,0.1)', borderRadius: 8, border: '1px solid rgba(142,106,58,0.2)' }}>
+              👀 Spectating · You'll join next round
+            </div>
+          ) : isCutter ? (
             <button onClick={performCut} disabled={loading} style={{ ...outBtn, opacity: loading ? 0.6 : 1 }}>
               {loading ? 'CUTTING...' : 'CUT CARD'}
             </button>
@@ -822,45 +860,33 @@ export default function App() {
   if (gs.phase === 'play') {
     const me = gs.players[myIdx];
     const amIPacked = (gs.packed || []).includes(myId);
+    const amSpectator = me?.spectator;
 
-    if (amIPacked && !me?.eliminated) {
+    // Spectator view (late join or eliminated or packed)
+    if (amSpectator || amIPacked || !me || me.eliminated) {
+      const label = amSpectator ? '👀 SPECTATING' : amIPacked ? '🏳️ PACKED' : '💀 ELIMINATED';
+      const subtitle = amSpectator ? "You'll play next round!" : amIPacked ? `+${DROP_PENALTY} pts · Watching` : 'Watching...';
       return (
         <div style={{ ...cBase, background: darkBg }}>
-          <div style={{ ...box, padding: 36, textAlign: 'center' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🏳️</div>
-            <h2 style={{ color: '#e8a85c', fontSize: 20, fontWeight: 400, letterSpacing: 2 }}>PACKED THIS ROUND</h2>
-            <p style={{ color: '#8899aa', fontSize: 13, marginTop: 8 }}>+{DROP_PENALTY} points · Watching Round {gs.round}</p>
+          <Watermark />
+          <div style={{ ...box, padding: 36, textAlign: 'center', position: 'relative', zIndex: 1 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>{amSpectator ? '👀' : amIPacked ? '🏳️' : '💀'}</div>
+            <h2 style={{ color: amIPacked ? '#e8a85c' : '#e74c3c', fontSize: 20, fontWeight: 400, letterSpacing: 2 }}>{label}</h2>
+            <p style={{ color: '#8899aa', fontSize: 13, marginTop: 8 }}>{subtitle} · Round {gs.round}</p>
             <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0' }}><WildBadge cut={cut} /></div>
-            <div style={{ marginTop: 12 }}>
-              {gs.players.filter(p => !p.eliminated).map(p => {
+            <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '8px 0' }}>
+              <DiscardLog log={gs.discardLog} cutCard={cut} />
+            </div>
+            <div style={{ marginTop: 8 }}>
+              {gs.players.filter(p => !p.eliminated && !p.spectator).map(p => {
                 const isPacked = (gs.packed || []).includes(p.id);
+                const isCur = p.id === gs.players[gs.currentPlayer]?.id;
                 return (
-                  <div key={p.id} style={{ color: isPacked ? '#8e6a3a' : '#b0c4d8', fontSize: 13, lineHeight: 1.8 }}>
-                    {p.id === gs.players[gs.currentPlayer]?.id ? '▶ ' : '  '}
-                    {p.name}: {p.score}
-                    {isPacked ? ' 🏳️' : ''}
+                  <div key={p.id} style={{ color: isPacked ? '#8e6a3a' : isCur ? '#4ade80' : '#b0c4d8', fontSize: 13, lineHeight: 2 }}>
+                    {isCur ? '▶ ' : '  '}{p.name}: {p.score}{isPacked ? ' 🏳️' : ''}
                   </div>
                 );
               })}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (!me || me.eliminated) {
-      return (
-        <div style={{ ...cBase, background: darkBg }}>
-          <div style={{ ...box, padding: 36, textAlign: 'center' }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>💀</div>
-            <h2 style={{ color: '#e74c3c', fontSize: 20, fontWeight: 400, letterSpacing: 2 }}>ELIMINATED</h2>
-            <p style={{ color: '#8899aa', fontSize: 13, marginTop: 8 }}>Watching... Round {gs.round}</p>
-            <div style={{ marginTop: 16 }}>
-              {gs.players.filter(p => !p.eliminated).map(p => (
-                <div key={p.id} style={{ color: '#b0c4d8', fontSize: 13, lineHeight: 1.8 }}>
-                  {p.id === gs.players[gs.currentPlayer]?.id ? '▶ ' : '  '}{p.name}: {p.score}
-                </div>
-              ))}
             </div>
           </div>
         </div>
@@ -871,22 +897,27 @@ export default function App() {
     const curName = gs.players[gs.currentPlayer]?.name || '?';
 
     return (
-      <div style={{ minHeight: '100vh', background: greenBg, fontFamily: font, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ minHeight: '100vh', background: greenBg, fontFamily: font, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        <Watermark />
+
         {/* Top Bar */}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           padding: '8px 12px', background: 'rgba(0,0,0,0.35)', borderBottom: '1px solid rgba(255,255,255,0.08)',
-          flexWrap: 'wrap', gap: 4,
+          flexWrap: 'wrap', gap: 4, position: 'relative', zIndex: 2,
         }}>
           <div>
             <span style={{ color: '#e8d5b7', fontSize: 14, fontWeight: 600 }}>{me.name}</span>
             <span style={{ color: '#8a9a6a', fontSize: 11, marginLeft: 8 }}>Score: {me.score}</span>
           </div>
-          <div style={{ color: '#8a9a6a', fontSize: 11 }}>R{gs.round} · {hand.length} cards · {roomCode}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <DiscardLog log={gs.discardLog} cutCard={cut} />
+            <span style={{ color: '#8a9a6a', fontSize: 11 }}>R{gs.round} · {hand.length} cards · {roomCode}</span>
+          </div>
         </div>
 
         {/* Wild + Turn */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px 12px', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px 12px', gap: 6, position: 'relative', zIndex: 1 }}>
           <WildBadge cut={cut} />
           <div style={{
             padding: '6px 16px', borderRadius: 20,
@@ -899,8 +930,8 @@ export default function App() {
         </div>
 
         {/* Mini scores */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: '4px 12px', flexWrap: 'wrap' }}>
-          {gs.players.filter(p => !p.eliminated).map(p => {
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: '4px 12px', flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
+          {gs.players.filter(p => !p.eliminated && !p.spectator).map(p => {
             const isPacked = (gs.packed || []).includes(p.id);
             const isCurrent = p.id === gs.players[gs.currentPlayer]?.id;
             return (
@@ -916,7 +947,7 @@ export default function App() {
         </div>
 
         {/* Piles */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 28, padding: '8px 16px 4px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 28, padding: '8px 16px 4px', position: 'relative', zIndex: 1 }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: '#7a9a6a', fontSize: 9, letterSpacing: 1, marginBottom: 4 }}>STOCK ({gs.stockPile?.length || 0})</div>
             <Card card={{}} faceDown onClick={isMyTurn && !drawn ? drawFromStock : undefined}
@@ -928,14 +959,16 @@ export default function App() {
               <Card card={topDisc} cutCard={cut} onClick={isMyTurn && !drawn ? drawFromDiscard : undefined}
                 style={{ cursor: isMyTurn && !drawn ? 'pointer' : 'default', opacity: !isMyTurn || drawn ? 0.4 : 1 }} />
             ) : (
-              <div style={{ width: 58, height: 84, borderRadius: 8, border: '2px dashed rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#557755', fontSize: 11 }}>Empty</div>
+              <div style={{ width: 68, height: 98, borderRadius: 8, border: '2px dashed rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#557755', fontSize: 11 }}>Empty</div>
             )}
           </div>
         </div>
+
+        {/* Draw prompt + Pack */}
         {isMyTurn && !drawn && (() => {
           const canPack = !(gs.hasDrawnOnce || []).includes(myId);
           return (
-            <div style={{ textAlign: 'center', padding: '4px 0' }}>
+            <div style={{ textAlign: 'center', padding: '4px 0', position: 'relative', zIndex: 1 }}>
               <p style={{ color: '#a0c890', fontSize: 12, margin: '2px 0' }}>↑ Tap a pile to draw ↑</p>
               {canPack && (
                 <button onClick={dropPack} style={{
@@ -943,16 +976,14 @@ export default function App() {
                   border: '1px solid rgba(231,76,60,0.4)', background: 'rgba(231,76,60,0.12)',
                   color: '#e74c3c', fontSize: 12, cursor: 'pointer', fontFamily: font,
                   fontWeight: 600, letterSpacing: 1,
-                }}>
-                  🏳️ PACK (+{DROP_PENALTY} pts)
-                </button>
+                }}>🏳️ PACK (+{DROP_PENALTY} pts)</button>
               )}
             </div>
           );
         })()}
 
         {/* Hand */}
-        <div style={{ flex: 1, padding: '6px 10px', overflowY: 'auto', paddingBottom: 150 }}
+        <div style={{ flex: 1, padding: '6px 10px', overflowY: 'auto', paddingBottom: 150, position: 'relative', zIndex: 1 }}
           onTouchMove={handleDragMove} onTouchEnd={handleDragEnd}
           onMouseMove={handleDragMove} onMouseUp={handleDragEnd}>
           {groups.map((gids, gi) => {
@@ -978,7 +1009,7 @@ export default function App() {
                     }}>+ here</button>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', minHeight: 40 }}>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', minHeight: 44 }}>
                   {cards.map((card, ci) => {
                     const beingDragged = dragCard && dragCard.id === card.id;
                     const showInsertBefore = isDropHere && dropTarget.position === ci;
@@ -986,38 +1017,25 @@ export default function App() {
                       <div key={card.id} style={{ display: 'flex', alignItems: 'center' }}>
                         {showInsertBefore && (
                           <div style={{
-                            width: 4, height: 56, borderRadius: 2,
+                            width: 4, height: 64, borderRadius: 2,
                             background: '#4ade80', marginRight: 2, flexShrink: 0,
                             boxShadow: '0 0 8px rgba(74,222,128,0.5)',
                           }} />
                         )}
                         <div ref={el => cardRefs.current[card.id] = el}
-                          style={{
-                            position: 'relative',
-                            opacity: beingDragged ? 0.3 : 1,
-                            transition: 'opacity 0.1s',
-                          }}
+                          style={{ position: 'relative', opacity: beingDragged ? 0.3 : 1, transition: 'opacity 0.1s' }}
                           onTouchStart={e => handleDragStart(e, card.id, gi, ci)}
                           onMouseDown={e => handleDragStart(e, card.id, gi, ci)}
                         >
                           <Card card={card} cutCard={cut} selected={sel.has(card.id)}
                             onClick={() => { if (!isDragging.current) toggleSel(card.id); }} small />
-                          {isMyTurn && drawn && !sel.has(card.id) && !dragCard && (
-                            <button onClick={e => { e.stopPropagation(); discardCard(card.id); }} style={{
-                              position: 'absolute', top: -5, right: -5, width: 16, height: 16,
-                              borderRadius: 8, background: '#c0392b', border: 'none', color: '#fff',
-                              fontSize: 9, cursor: 'pointer', display: 'flex', alignItems: 'center',
-                              justifyContent: 'center', fontWeight: 700,
-                            }}>✕</button>
-                          )}
                         </div>
                       </div>
                     );
                   })}
-                  {/* Insert indicator at end of group */}
                   {isDropHere && dropTarget.position >= cards.length && (
                     <div style={{
-                      width: 4, height: 56, borderRadius: 2,
+                      width: 4, height: 64, borderRadius: 2,
                       background: '#4ade80', marginLeft: 2, flexShrink: 0,
                       boxShadow: '0 0 8px rgba(74,222,128,0.5)',
                     }} />
@@ -1026,7 +1044,6 @@ export default function App() {
               </div>
             );
           })}
-          {/* New group drop zone */}
           {dragCard && (
             <div style={{
               marginTop: 4, padding: '12px', borderRadius: 10,
@@ -1034,25 +1051,21 @@ export default function App() {
               background: dropTarget && dropTarget.groupIdx === -1 ? 'rgba(74,222,128,0.08)' : 'rgba(255,255,255,0.02)',
               textAlign: 'center', color: dropTarget && dropTarget.groupIdx === -1 ? '#4ade80' : '#556655',
               fontSize: 11, transition: 'all 0.15s',
-            }}>
-              + Drop here for new group
-            </div>
+            }}>+ Drop here for new group</div>
           )}
         </div>
 
-        {/* Floating ghost card while dragging */}
+        {/* Ghost drag card */}
         {dragCard && (() => {
           const card = hand.find(c => c.id === dragCard.id);
           if (!card) return null;
           return (
             <div style={{
-              position: 'fixed', left: dragPos.x - 22, top: dragPos.y - 32,
+              position: 'fixed', left: dragPos.x - 27, top: dragPos.y - 39,
               zIndex: 9999, pointerEvents: 'none',
               transform: 'scale(1.15) rotate(-3deg)',
               filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.5))',
-            }}>
-              <Card card={card} cutCard={cut} small glow />
-            </div>
+            }}><Card card={card} cutCard={cut} small glow /></div>
           );
         })()}
 
@@ -1060,21 +1073,22 @@ export default function App() {
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
           background: 'linear-gradient(to top,rgba(0,0,0,0.92) 60%,transparent)', padding: '20px 14px 16px',
+          zIndex: 10,
         }}>
           {err && <p style={{ color: '#e74c3c', fontSize: 11, textAlign: 'center', margin: '0 0 6px' }}>{err}</p>}
           <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
             {sel.size >= 2 && <button onClick={makeGroup} style={abtn('#2980b9')}>Group ({sel.size})</button>}
             {sel.size > 0 && <button onClick={() => setSel(new Set())} style={abtn('#7f8c8d')}>Deselect</button>}
-            <button onClick={() => {
-              const sorted = sortHand(hand);
-              const ng = [sorted.map(c => c.id)];
-              setHand(sorted);
-              setGroups(ng);
-              setSel(new Set());
-              savePlayerHand(roomCode, myId, sorted, ng);
-            }} style={abtn('#2c6e49')}>Sort</button>
-            <button onClick={ungroupAll} style={abtn('#8e6a3a')}>Ungroup</button>
-            {isMyTurn && drawn && (
+            <button onClick={sortInGroups} style={abtn('#2c6e49')}>Sort</button>
+            <button onClick={ungroupAction} style={abtn('#8e6a3a')}>
+              {sel.size > 0 ? 'To G1 (' + sel.size + ')' : 'Ungroup'}
+            </button>
+            {isMyTurn && drawn && sel.size === 1 && (
+              <button onClick={discardSelected} style={{
+                ...abtn('#c0392b'), background: 'linear-gradient(135deg,#c0392b,#922b21)',
+              }}>🗑 DISCARD</button>
+            )}
+            {isMyTurn && drawn && sel.size === 1 && hand.length === 14 && (
               <button onClick={declareShow} style={{ ...abtn('#d4a853'), background: 'linear-gradient(135deg,#d4a853,#b8862d)', color: '#1a1a2e' }}>
                 🏆 SHOW
               </button>
@@ -1082,8 +1096,8 @@ export default function App() {
           </div>
           <p style={{ color: '#7a9a6a', fontSize: 10, textAlign: 'center', margin: '6px 0 0' }}>
             {isMyTurn && drawn
-              ? 'Tap ✕ to discard · Select 1 + SHOW to declare'
-              : 'Hold & drag cards to rearrange · Tap to select'}
+              ? 'Select 1 card → DISCARD or SHOW'
+              : 'Hold & drag to rearrange · Tap to select'}
           </p>
         </div>
       </div>
@@ -1096,7 +1110,8 @@ export default function App() {
     const decName = gs.players[gs.declarer]?.name || '?';
     return (
       <div style={{ ...cBase, background: darkBg }}>
-        <div style={{ ...box, padding: '28px 24px' }}>
+        <Watermark />
+        <div style={{ ...box, padding: '28px 24px', position: 'relative', zIndex: 1 }}>
           <h2 style={{ color: '#e8d5b7', textAlign: 'center', margin: '0 0 4px', fontSize: 22, fontWeight: 400, letterSpacing: 2 }}>
             {gs.invalidShow ? '❌ INVALID SHOW' : '🏆 ROUND COMPLETE'}
           </h2>
@@ -1149,9 +1164,7 @@ export default function App() {
               {active.length <= 2 ? 'SEE RESULTS' : 'NEXT ROUND'}
             </button>
           ) : (
-            <div style={{ marginTop: 20, color: '#667', fontSize: 13, textAlign: 'center' }}>
-              Waiting for host... ⏳
-            </div>
+            <div style={{ marginTop: 20, color: '#667', fontSize: 13, textAlign: 'center' }}>Waiting for host... ⏳</div>
           )}
         </div>
       </div>
@@ -1165,9 +1178,11 @@ export default function App() {
     const sorted = [...gs.players].sort((a, b) => a.score - b.score);
     return (
       <div style={{ ...cBase, background: darkBg }}>
-        <div style={{ ...box, padding: '36px 24px', textAlign: 'center' }}>
+        <Watermark />
+        <div style={{ ...box, padding: '36px 24px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
           <div style={{ fontSize: 52, marginBottom: 8 }}>👑</div>
           <h2 style={{ color: '#d4a853', fontSize: 26, fontWeight: 400, margin: '0 0 4px', letterSpacing: 2 }}>{winner.name} WINS!</h2>
+          <p style={{ color: '#556', fontSize: 10, letterSpacing: 1, margin: '2px 0 4px' }}>CHALARAGERS</p>
           <p style={{ color: '#8899aa', fontSize: 12, margin: '0 0 28px' }}>After {gs.round} rounds</p>
           <div style={{ textAlign: 'left', borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)' }}>
             {sorted.map((p, i) => (
