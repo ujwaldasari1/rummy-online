@@ -12,6 +12,56 @@ import {
   genCode, genId,
 } from './game.js';
 
+// ─── Design Tokens ──────────────────────────────────────────────────
+const T = {
+  display: "'Cinzel', serif",
+  body: "'DM Sans', sans-serif",
+
+  bgDeepest: '#060e1a',
+  bgDeep: '#0b1626',
+  bgMid: '#0f1f38',
+  bgLight: '#162a4a',
+
+  tableDeep: '#073d1e',
+  tableMid: '#0a5228',
+  tableLight: '#0d6830',
+  tableEdge: '#052e16',
+
+  gold: '#d4af37',
+  goldLight: '#e8cc6e',
+  goldDark: '#a3882a',
+  goldMuted: 'rgba(212,175,55,0.15)',
+  goldBorder: 'rgba(212,175,55,0.25)',
+  goldText: '#e2c778',
+
+  textPrimary: '#eee5d3',
+  textSecondary: '#a8b8cc',
+  textMuted: '#6b7d95',
+  textDim: '#4a5a6e',
+
+  cardWhite: '#fefcf8',
+  cardSelected: '#fff9e6',
+  cardWild: '#fff6e0',
+  cardRed: '#c0392b',
+  cardBlack: '#1a1a2e',
+
+  success: '#38c172',
+  danger: '#e74c3c',
+  warning: '#e8a85c',
+  purple: '#8e44ad',
+
+  glass: 'rgba(12,20,40,0.65)',
+  glassBorder: 'rgba(255,255,255,0.08)',
+  glassLight: 'rgba(255,255,255,0.04)',
+  glassHeavy: 'rgba(8,14,30,0.85)',
+
+  shadowSm: '0 2px 8px rgba(0,0,0,0.3)',
+  shadowMd: '0 8px 24px rgba(0,0,0,0.4)',
+  shadowLg: '0 16px 48px rgba(0,0,0,0.5)',
+  shadowXl: '0 24px 64px rgba(0,0,0,0.6)',
+  shadowGold: '0 4px 24px rgba(212,175,55,0.25)',
+};
+
 // ─── Persistent player ID ────────────────────────────────────────────
 function getMyId() {
   let id = null;
@@ -20,36 +70,104 @@ function getMyId() {
   return id;
 }
 
-// ─── Card Component (bigger) ─────────────────────────────────────────
+// ─── Card Component ─────────────────────────────────────────────────
 function Card({ card, selected, onClick, small, faceDown, cutCard, glow, style: sx }) {
-  const w = small ? 54 : 68, h = small ? 78 : 98;
+  const w = small ? 58 : 72, h = small ? 84 : 104;
+
   if (faceDown) return (
     <div onClick={onClick} style={{
-      width: w, height: h, borderRadius: 8,
-      background: 'linear-gradient(135deg,#1a3a5c,#0d2137)', border: '2px solid #2a5a8c',
-      cursor: onClick ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.3)', flexShrink: 0,
-      backgroundImage: 'repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(255,255,255,0.03) 4px,rgba(255,255,255,0.03) 8px)', ...sx
-    }}><span style={{ fontSize: small ? 16 : 22, opacity: 0.4 }}>🂠</span></div>
+      width: w, height: h, borderRadius: 10,
+      background: 'linear-gradient(145deg, #1a3a5c, #0d2848, #0a1e3a)',
+      border: '2px solid #2a5a8c',
+      cursor: onClick ? 'pointer' : 'default',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      boxShadow: '0 3px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)',
+      flexShrink: 0, position: 'relative', overflow: 'hidden',
+      transition: 'all 0.2s ease', ...sx,
+    }}>
+      <div style={{
+        position: 'absolute', inset: small ? 4 : 5,
+        border: '1.5px solid rgba(212,175,55,0.25)', borderRadius: 6,
+      }} />
+      <div style={{
+        position: 'absolute', inset: small ? 8 : 10,
+        backgroundImage: `
+          repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(212,175,55,0.06) 6px, rgba(212,175,55,0.06) 7px),
+          repeating-linear-gradient(-45deg, transparent, transparent 6px, rgba(212,175,55,0.06) 6px, rgba(212,175,55,0.06) 7px)
+        `, borderRadius: 4,
+      }} />
+      <div style={{
+        width: small ? 18 : 24, height: small ? 18 : 24,
+        border: '1.5px solid rgba(212,175,55,0.3)', borderRadius: '50%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(212,175,55,0.08)', position: 'relative', zIndex: 1,
+      }}>
+        <span style={{ fontSize: small ? 8 : 10, color: 'rgba(212,175,55,0.5)', fontFamily: T.display, fontWeight: 700 }}>C</span>
+      </div>
+    </div>
   );
+
   const wild = cutCard && isWild(card, cutCard);
   const clr = card.nat ? '#8e44ad' : SUIT_COLORS[card.suit];
+
+  const borderColor = selected ? T.gold : wild ? T.warning : glow ? T.success : 'rgba(180,180,180,0.3)';
+  const cardBg = selected ? T.cardSelected : wild ? `linear-gradient(135deg, ${T.cardWild}, #fff8ee)` : T.cardWhite;
+  const cardShadow = selected
+    ? `0 6px 20px rgba(212,175,55,0.4), 0 0 0 2px ${T.gold}`
+    : glow ? `0 4px 16px rgba(56,193,114,0.3), 0 0 0 1px ${T.success}`
+    : wild ? '0 3px 14px rgba(232,168,92,0.25)'
+    : '0 2px 8px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)';
+
   return (
     <div onClick={onClick} style={{
-      width: w, height: h, borderRadius: 8,
-      background: selected ? '#fffde7' : wild ? 'linear-gradient(135deg,#fff8e1,#fff3cd)' : '#fff',
-      border: '2px solid ' + (selected ? '#f39c12' : wild ? '#e8a85c' : glow ? '#4ade80' : '#ccc'),
+      width: w, height: h, borderRadius: 10,
+      background: cardBg, border: `2px solid ${borderColor}`,
       cursor: onClick ? 'pointer' : 'default',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      boxShadow: selected ? '0 0 12px rgba(243,156,18,0.5)' : glow ? '0 0 10px rgba(74,222,128,0.4)' : wild ? '0 0 8px rgba(232,168,92,0.3)' : '0 2px 6px rgba(0,0,0,0.15)',
-      transform: selected ? 'translateY(-6px)' : 'none',
-      transition: 'all 0.15s', flexShrink: 0, position: 'relative', userSelect: 'none', ...sx
+      boxShadow: cardShadow,
+      transform: selected ? 'translateY(-10px) scale(1.04)' : 'none',
+      transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+      flexShrink: 0, position: 'relative', userSelect: 'none', ...sx,
     }}>
-      {wild && <span style={{ position: 'absolute', top: 2, right: 4, fontSize: 9, color: '#d4a853', fontWeight: 800 }}>★</span>}
-      {card.nat ? <span style={{ fontSize: small ? 22 : 30 }}>🃏</span> : <>
-        <span style={{ fontSize: small ? 15 : 19, fontWeight: 800, color: clr, lineHeight: 1, fontFamily: 'Georgia,serif' }}>{card.rank}</span>
-        <span style={{ fontSize: small ? 18 : 24, color: clr, lineHeight: 1 }}>{card.suit}</span>
-      </>}
+      {wild && (
+        <div style={{
+          position: 'absolute', top: -4, right: -4, width: 18, height: 18,
+          borderRadius: '50%', background: `linear-gradient(135deg, ${T.gold}, ${T.goldDark})`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 6px rgba(212,175,55,0.5)', zIndex: 2,
+        }}><span style={{ fontSize: 10, color: '#fff' }}>★</span></div>
+      )}
+      {card.nat ? (
+        <div style={{
+          width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 2,
+        }}>
+          <span style={{ fontSize: small ? 28 : 36 }}>🃏</span>
+          <span style={{ fontSize: small ? 7 : 8, fontFamily: T.display, color: '#8e44ad', fontWeight: 700, letterSpacing: 1 }}>JOKER</span>
+        </div>
+      ) : (
+        <>
+          <div style={{
+            position: 'absolute', top: small ? 4 : 5, left: small ? 5 : 6,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1,
+          }}>
+            <span style={{ fontSize: small ? 13 : 16, fontWeight: 800, color: clr, fontFamily: T.display }}>{card.rank}</span>
+            <span style={{ fontSize: small ? 10 : 13, color: clr, marginTop: -1 }}>{card.suit}</span>
+          </div>
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            fontSize: small ? 26 : 34, color: clr, opacity: 0.85,
+          }}>{card.suit}</div>
+          <div style={{
+            position: 'absolute', bottom: small ? 4 : 5, right: small ? 5 : 6,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1,
+            transform: 'rotate(180deg)',
+          }}>
+            <span style={{ fontSize: small ? 13 : 16, fontWeight: 800, color: clr, fontFamily: T.display }}>{card.rank}</span>
+            <span style={{ fontSize: small ? 10 : 13, color: clr, marginTop: -1 }}>{card.suit}</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -59,22 +177,30 @@ function WildBadge({ cut }) {
   if (!cut) return null;
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
-      background: 'rgba(212,168,83,0.12)', border: '1px solid rgba(212,168,83,0.25)',
-      borderRadius: 8, fontSize: 11, color: '#e8d5b7', flexWrap: 'wrap', justifyContent: 'center'
+      display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px',
+      background: T.goldMuted, border: `1px solid ${T.goldBorder}`,
+      borderRadius: 20, fontSize: 12, color: T.textPrimary,
+      backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+      flexWrap: 'wrap', justifyContent: 'center', fontFamily: T.body,
+      boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
     }}>
-      <span style={{ fontWeight: 700, color: '#d4a853' }}>CUT:</span>
-      <span style={{ fontSize: 15, fontWeight: 800, color: cut.nat ? '#8e44ad' : SUIT_COLORS[cut.suit] }}>
-        {cut.nat ? '🃏' : cut.rank + cut.suit}
-      </span>
-      <span style={{ color: '#a0b0c0' }}>→</span>
+      <span style={{ fontWeight: 700, color: T.gold, fontFamily: T.display, fontSize: 11, letterSpacing: 1 }}>CUT</span>
+      <span style={{
+        fontSize: 16, fontWeight: 800, color: cut.nat ? T.purple : SUIT_COLORS[cut.suit],
+        background: 'rgba(255,255,255,0.9)', padding: '2px 8px', borderRadius: 6, fontFamily: T.display,
+      }}>{cut.nat ? '🃏' : cut.rank + cut.suit}</span>
+      <span style={{ color: T.textMuted, fontSize: 14 }}>→</span>
       {cut.nat
-        ? <span style={{ color: '#a0b0c0' }}>No extra wilds</span>
-        : <span style={{ fontWeight: 800 }}>
+        ? <span style={{ color: T.textMuted, fontSize: 11 }}>No extra wilds</span>
+        : <span style={{ fontWeight: 700 }}>
             {OPPOSITE_SUITS[cut.suit].map(s =>
-              <span key={s} style={{ color: SUIT_COLORS[s], marginRight: 3 }}>{cut.rank}{s}★</span>
+              <span key={s} style={{
+                color: SUIT_COLORS[s], marginRight: 4,
+                background: 'rgba(255,255,255,0.85)', padding: '1px 6px', borderRadius: 4,
+                fontSize: 12, fontFamily: T.display,
+              }}>{cut.rank}{s}★</span>
             )}
-            <span style={{ color: '#a0b0c0', marginLeft: 2 }}>wild</span>
+            <span style={{ color: T.textMuted, marginLeft: 4, fontSize: 11 }}>wild</span>
           </span>
       }
     </div>
@@ -84,14 +210,21 @@ function WildBadge({ cut }) {
 // ─── Watermark ───────────────────────────────────────────────────────
 function Watermark() {
   return (
-    <div style={{
-      position: 'fixed', top: '50%', left: '50%',
-      transform: 'translate(-50%, -50%) rotate(-18deg)',
-      fontSize: 52, fontWeight: 900, letterSpacing: 10, fontFamily: "'Georgia',serif",
-      color: 'rgba(255,255,255,0.025)', pointerEvents: 'none', zIndex: 0,
-      whiteSpace: 'nowrap', userSelect: 'none',
-      textShadow: '0 0 60px rgba(212,168,83,0.03)',
-    }}>CHALARAGERS</div>
+    <>
+      <div style={{
+        position: 'fixed', inset: 0,
+        background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.5) 100%)',
+        pointerEvents: 'none', zIndex: 0,
+      }} />
+      <div style={{
+        position: 'fixed', top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%) rotate(-18deg)',
+        fontSize: 56, fontWeight: 900, letterSpacing: 14, fontFamily: T.display,
+        color: 'rgba(212,175,55,0.018)', pointerEvents: 'none', zIndex: 0,
+        whiteSpace: 'nowrap', userSelect: 'none',
+        textShadow: '0 0 80px rgba(212,175,55,0.02)',
+      }}>CHALARAGERS</div>
+    </>
   );
 }
 
@@ -103,42 +236,53 @@ function DiscardLog({ log, cutCard }) {
   return (
     <div style={{ position: 'relative', zIndex: 10 }}>
       <button onClick={() => setOpen(!open)} style={{
-        padding: '4px 12px', borderRadius: 6, border: '1px solid rgba(212,168,83,0.3)',
-        background: open ? 'rgba(212,168,83,0.15)' : 'rgba(0,0,0,0.3)',
-        color: '#d4a853', fontSize: 10, cursor: 'pointer', fontFamily: "'Georgia',serif",
-        fontWeight: 600, letterSpacing: 1,
-      }}>
-        📋 LOG {open ? '▲' : '▼'}
-      </button>
+        padding: '5px 14px', borderRadius: 8,
+        border: `1px solid ${open ? T.goldBorder : 'rgba(255,255,255,0.1)'}`,
+        background: open ? T.goldMuted : T.glassLight,
+        color: T.goldText, fontSize: 10, cursor: 'pointer',
+        fontFamily: T.body, fontWeight: 600, letterSpacing: 0.5,
+        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+        transition: 'all 0.2s ease',
+      }}>📋 LOG {open ? '▲' : '▼'}</button>
       {open && (
         <div style={{
-          position: 'absolute', top: '100%', right: 0, marginTop: 4,
-          width: 260, maxHeight: 220, overflowY: 'auto',
-          background: 'rgba(10,22,40,0.96)', border: '1px solid rgba(212,168,83,0.2)',
-          borderRadius: 10, padding: 8, zIndex: 20,
-          boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
+          position: 'absolute', top: '100%', right: 0, marginTop: 6,
+          width: 280, maxHeight: 240, overflowY: 'auto',
+          background: T.glassHeavy, border: `1px solid ${T.glassBorder}`,
+          borderRadius: 14, padding: 10, zIndex: 20,
+          boxShadow: T.shadowLg,
+          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          animation: 'fadeSlideUp 0.2s ease-out',
         }}>
-          <div style={{ color: '#8899aa', fontSize: 9, letterSpacing: 1, marginBottom: 6, textAlign: 'center' }}>DISCARD LOG</div>
+          <div style={{
+            color: T.textMuted, fontSize: 9, letterSpacing: 1.5, marginBottom: 8,
+            textAlign: 'center', fontFamily: T.display, fontWeight: 600,
+          }}>DISCARD LOG</div>
           {recent.map((e, i) => {
             const cardLabel = e.card?.nat ? '🃏' : (e.card?.rank || '?') + (e.card?.suit || '');
-            const cardColor = e.card?.nat ? '#8e44ad' : SUIT_COLORS[e.card?.suit] || '#999';
+            const cardColor = e.card?.nat ? T.purple : SUIT_COLORS[e.card?.suit] || '#999';
             return (
               <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '3px 6px',
-                borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 11,
+                display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px',
+                borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: 12,
               }}>
-                <span style={{ color: e.action === 'picked' ? '#4ade80' : '#e8a85c', fontWeight: 700, fontSize: 9, width: 46, flexShrink: 0 }}>
-                  {e.action === 'picked' ? '⬆ PICK' : '⬇ TOSS'}
-                </span>
-                <span style={{ color: '#b0c4d8', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.player}</span>
                 <span style={{
-                  fontWeight: 800, fontSize: 12, color: cardColor,
-                  background: 'rgba(255,255,255,0.9)', padding: '1px 5px', borderRadius: 4, fontFamily: 'Georgia,serif'
+                  color: e.action === 'picked' ? T.success : T.warning,
+                  fontWeight: 700, fontSize: 9, width: 46, flexShrink: 0, fontFamily: T.body,
+                }}>{e.action === 'picked' ? '⬆ PICK' : '⬇ TOSS'}</span>
+                <span style={{
+                  color: T.textSecondary, flex: 1, overflow: 'hidden',
+                  textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>{e.player}</span>
+                <span style={{
+                  fontWeight: 800, fontSize: 13, color: cardColor,
+                  background: 'rgba(255,255,255,0.92)', padding: '2px 6px',
+                  borderRadius: 5, fontFamily: T.display,
                 }}>{cardLabel}</span>
               </div>
             );
           })}
-          {!recent.length && <div style={{ color: '#556', fontSize: 11, textAlign: 'center', padding: 12 }}>No activity yet</div>}
+          {!recent.length && <div style={{ color: T.textDim, fontSize: 12, textAlign: 'center', padding: 16 }}>No activity yet</div>}
         </div>
       )}
     </div>
@@ -549,7 +693,6 @@ export default function App() {
   // Ungroup: if cards selected → move to group 1, else ungroup all
   function ungroupAction() {
     if (sel.size > 0) {
-      // Move selected cards to group 1 (index 0)
       const ids = [...sel];
       let ng = groups.map(g => g.filter(id => !sel.has(id)));
       if (ng.length > 0) {
@@ -693,27 +836,33 @@ export default function App() {
   }, [gs?.phase, screen]);
 
   // ── Styles ──
-  const darkBg = 'linear-gradient(145deg,#0a1628,#132743,#0d1f36)';
-  const greenBg = 'linear-gradient(145deg,#0b3d20,#145a30,#0b3d20)';
-  const font = "'Georgia','Times New Roman',serif";
+  const darkBg = `linear-gradient(145deg, ${T.bgDeepest}, ${T.bgMid}, ${T.bgDeep})`;
+  const greenBg = `radial-gradient(ellipse at 50% 40%, ${T.tableMid} 0%, ${T.tableDeep} 60%, ${T.tableEdge} 100%)`;
+
   const goldBtn = {
-    width: '100%', padding: 14, borderRadius: 10, border: 'none',
-    background: 'linear-gradient(135deg,#d4a853,#b8862d)', color: '#1a1a2e',
-    fontSize: 16, fontWeight: 700, cursor: 'pointer', letterSpacing: 2, fontFamily: font,
-    boxShadow: '0 4px 20px rgba(212,168,83,0.3)',
+    width: '100%', padding: '14px 24px', borderRadius: 12, border: 'none',
+    background: `linear-gradient(135deg, ${T.goldLight}, ${T.gold}, ${T.goldDark})`,
+    color: T.bgDeepest, fontSize: 15, fontWeight: 700, cursor: 'pointer',
+    letterSpacing: 2, fontFamily: T.display,
+    boxShadow: T.shadowGold, position: 'relative', overflow: 'hidden',
+    transition: 'all 0.2s ease, transform 0.15s ease',
   };
   const outBtn = {
-    padding: '12px 36px', borderRadius: 10, border: '1px solid #d4a853',
-    background: 'rgba(212,168,83,0.12)', color: '#d4a853',
-    fontSize: 15, cursor: 'pointer', letterSpacing: 2, fontFamily: font, fontWeight: 600,
+    padding: '12px 36px', borderRadius: 12, border: `1px solid ${T.goldBorder}`,
+    background: T.goldMuted, color: T.goldText,
+    fontSize: 14, cursor: 'pointer', letterSpacing: 2,
+    fontFamily: T.display, fontWeight: 600,
+    transition: 'all 0.2s ease',
+    backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
   };
   const box = {
-    background: 'rgba(255,255,255,0.04)', borderRadius: 20, maxWidth: 480, width: '100%',
-    border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+    background: T.glass, borderRadius: 24, maxWidth: 480, width: '100%',
+    border: `1px solid ${T.glassBorder}`, boxShadow: T.shadowXl,
+    backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
   };
   const cBase = {
     minHeight: '100vh', display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: font,
+    alignItems: 'center', justifyContent: 'center', padding: 20, fontFamily: T.body,
   };
 
   // ════════════════════════════ RENDER ════════════════════════════
@@ -723,40 +872,57 @@ export default function App() {
     return (
       <div style={{ ...cBase, background: darkBg }}>
         <Watermark />
-        <div style={{ ...box, padding: '40px 32px', position: 'relative', zIndex: 1 }}>
-          <div style={{ textAlign: 'center', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, letterSpacing: 3, color: '#d4a853', fontWeight: 700 }}>♠ ♥ ♦ ♣</span>
+        <div style={{
+          position: 'absolute', top: '40%', left: '50%',
+          transform: 'translate(-50%, -50%)', width: 400, height: 400,
+          background: 'radial-gradient(circle, rgba(212,175,55,0.06) 0%, transparent 70%)',
+          pointerEvents: 'none', zIndex: 0,
+        }} />
+        <div style={{ ...box, padding: '44px 36px', position: 'relative', zIndex: 1, animation: 'fadeSlideUp 0.4s ease-out' }}>
+          <div style={{ textAlign: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 13, letterSpacing: 6, color: T.gold, fontWeight: 700, fontFamily: T.display }}>♠ ♥ ♦ ♣</span>
           </div>
-          <h1 style={{ color: '#e8d5b7', textAlign: 'center', margin: '0 0 2px', fontSize: 28, fontWeight: 400, letterSpacing: 4 }}>CHALARAGERS</h1>
-          <p style={{ color: '#8899aa', textAlign: 'center', margin: '0 0 4px', fontSize: 11, letterSpacing: 1 }}>ONLINE MULTIPLAYER · INDIAN RUMMY</p>
-          <p style={{ color: '#556', textAlign: 'center', margin: '0 0 24px', fontSize: 10, letterSpacing: 1 }}>Up to 8 players · 2 decks · 201 elimination</p>
+          <h1 style={{
+            color: T.textPrimary, textAlign: 'center', margin: '0 0 4px',
+            fontSize: 30, fontWeight: 700, letterSpacing: 6, fontFamily: T.display,
+            textShadow: '0 2px 20px rgba(212,175,55,0.15)',
+          }}>CHALARAGERS</h1>
+          <p style={{ color: T.textMuted, textAlign: 'center', margin: '0 0 4px', fontSize: 11, letterSpacing: 2, fontFamily: T.body, fontWeight: 500 }}>
+            ONLINE MULTIPLAYER · INDIAN RUMMY
+          </p>
+          <p style={{ color: T.textDim, textAlign: 'center', margin: '0 0 28px', fontSize: 10, letterSpacing: 1.5, fontFamily: T.body }}>
+            Up to 8 players · 2 decks · 201 elimination
+          </p>
 
-          {err && <p style={{ color: '#e74c3c', fontSize: 12, textAlign: 'center', margin: '0 0 12px' }}>{err}</p>}
+          {err && <p style={{ color: T.danger, fontSize: 12, textAlign: 'center', margin: '0 0 14px', fontFamily: T.body, fontWeight: 500 }}>{err}</p>}
 
-          <label style={{ color: '#b0c4d8', fontSize: 12, letterSpacing: 1 }}>YOUR NAME</label>
+          <label style={{ color: T.textSecondary, fontSize: 11, letterSpacing: 1.5, fontFamily: T.body, fontWeight: 600, textTransform: 'uppercase' }}>YOUR NAME</label>
           <input value={myName} onChange={e => { setMyName(e.target.value); setErr(''); }}
             placeholder="Enter your name" style={{
-              width: '100%', padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)',
-              background: 'rgba(255,255,255,0.05)', color: '#e0e0e0', fontSize: 14, fontFamily: font,
-              outline: 'none', marginTop: 6, marginBottom: 20, boxSizing: 'border-box',
+              width: '100%', padding: '12px 16px', borderRadius: 10,
+              border: `1px solid ${T.glassBorder}`, background: T.glassLight,
+              color: T.textPrimary, fontSize: 15, fontFamily: T.body,
+              outline: 'none', marginTop: 8, marginBottom: 22, boxSizing: 'border-box',
+              transition: 'border-color 0.2s ease',
             }} />
 
-          <button onClick={createRoom} disabled={loading} style={{ ...goldBtn, marginBottom: 12, opacity: loading ? 0.6 : 1 }}>
+          <button onClick={createRoom} disabled={loading} style={{ ...goldBtn, marginBottom: 14, opacity: loading ? 0.6 : 1 }}>
             {loading ? 'CREATING...' : 'CREATE ROOM'}
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '12px 0' }}>
-            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
-            <span style={{ color: '#667', fontSize: 12, letterSpacing: 2 }}>OR JOIN</span>
-            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '14px 0' }}>
+            <div style={{ flex: 1, height: 1, background: `linear-gradient(to right, transparent, ${T.glassBorder}, transparent)` }} />
+            <span style={{ color: T.textDim, fontSize: 11, letterSpacing: 3, fontFamily: T.display, fontWeight: 600 }}>OR JOIN</span>
+            <div style={{ flex: 1, height: 1, background: `linear-gradient(to right, transparent, ${T.glassBorder}, transparent)` }} />
           </div>
 
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
             <input value={joinCode} onChange={e => { setJoinCode(e.target.value.toUpperCase()); setErr(''); }}
               placeholder="CODE" maxLength={5} style={{
-                flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)',
-                background: 'rgba(255,255,255,0.05)', color: '#e0e0e0', fontSize: 16, fontFamily: font,
-                outline: 'none', letterSpacing: 4, textAlign: 'center', textTransform: 'uppercase',
+                flex: 1, padding: '12px 16px', borderRadius: 10,
+                border: `1px solid ${T.glassBorder}`, background: T.glassLight,
+                color: T.textPrimary, fontSize: 18, fontFamily: T.display, fontWeight: 700,
+                outline: 'none', letterSpacing: 6, textAlign: 'center', textTransform: 'uppercase',
               }} />
             <button onClick={joinRoom} disabled={loading} style={outBtn}>{loading ? '...' : 'JOIN'}</button>
           </div>
@@ -770,29 +936,44 @@ export default function App() {
     return (
       <div style={{ ...cBase, background: darkBg }}>
         <Watermark />
-        <div style={{ ...box, padding: '36px 32px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: 12, color: '#8899aa', letterSpacing: 1, marginBottom: 6 }}>ROOM CODE</div>
-          <div style={{ fontSize: 36, color: '#d4a853', fontWeight: 700, letterSpacing: 8, marginBottom: 4 }}>{roomCode}</div>
-          <p style={{ color: '#667', fontSize: 12, marginBottom: 24 }}>Share this code with your friends</p>
+        <div style={{ ...box, padding: '36px 32px', textAlign: 'center', position: 'relative', zIndex: 1, animation: 'fadeSlideUp 0.4s ease-out' }}>
+          <div style={{ fontSize: 12, color: T.textMuted, letterSpacing: 1.5, marginBottom: 6, fontFamily: T.body, fontWeight: 600 }}>ROOM CODE</div>
+          <div style={{
+            display: 'inline-block', padding: '4px 16px', borderRadius: 12,
+            animation: 'glowPulse 3s ease-in-out infinite',
+          }}>
+            <span style={{ fontSize: 38, color: T.gold, fontWeight: 800, letterSpacing: 10, fontFamily: T.display, textShadow: '0 0 30px rgba(212,175,55,0.3)' }}>{roomCode}</span>
+          </div>
+          <p style={{ color: T.textDim, fontSize: 12, marginBottom: 24, fontFamily: T.body }}>Share this code with your friends</p>
 
           <div style={{ textAlign: 'left', marginBottom: 24 }}>
-            <div style={{ color: '#b0c4d8', fontSize: 12, letterSpacing: 1, marginBottom: 8 }}>PLAYERS ({gs?.players?.length || 0}/8)</div>
+            <div style={{ color: T.textSecondary, fontSize: 12, letterSpacing: 1.5, marginBottom: 10, fontFamily: T.body, fontWeight: 600 }}>
+              PLAYERS ({gs?.players?.length || 0}/8)
+            </div>
             {gs?.players?.map((p, i) => (
               <div key={p.id} style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
-                background: p.id === myId ? 'rgba(212,168,83,0.08)' : 'transparent',
-                borderRadius: 8, marginBottom: 4,
-                border: p.id === myId ? '1px solid rgba(212,168,83,0.15)' : '1px solid transparent',
+                display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                background: p.id === myId ? T.goldMuted : 'transparent',
+                borderRadius: 10, marginBottom: 4,
+                border: p.id === myId ? `1px solid ${T.goldBorder}` : '1px solid transparent',
+                animation: `fadeSlideUp ${0.2 + i * 0.08}s ease-out`,
               }}>
-                <span style={{ fontSize: 18 }}>{i === 0 ? '👑' : '🎮'}</span>
-                <span style={{ color: p.id === myId ? '#d4a853' : '#b0c4d8', fontSize: 14 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: '50%',
+                  background: i === 0 ? `linear-gradient(135deg, ${T.gold}, ${T.goldDark})` : T.glassLight,
+                  border: i === 0 ? 'none' : `1px solid ${T.glassBorder}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 13, fontWeight: 700, color: i === 0 ? T.bgDeepest : T.textMuted,
+                  fontFamily: T.display,
+                }}>{i === 0 ? '★' : p.name[0]?.toUpperCase()}</div>
+                <span style={{ color: p.id === myId ? T.goldText : T.textSecondary, fontSize: 14, fontFamily: T.body, fontWeight: 500 }}>
                   {p.name} {p.id === myId ? '(you)' : ''}
                 </span>
               </div>
             ))}
           </div>
 
-          {err && <p style={{ color: '#e74c3c', fontSize: 12, margin: '0 0 12px' }}>{err}</p>}
+          {err && <p style={{ color: T.danger, fontSize: 12, margin: '0 0 12px', fontFamily: T.body }}>{err}</p>}
 
           {isHost ? (
             <button onClick={startGame} style={{ ...goldBtn, opacity: (gs?.players?.length || 0) < 2 ? 0.5 : 1 }}
@@ -800,8 +981,12 @@ export default function App() {
               START GAME ({gs?.players?.length || 0} players)
             </button>
           ) : (
-            <div style={{ padding: 16, borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: '#8899aa', fontSize: 13 }}>
-              Waiting for host to start... ⏳
+            <div style={{
+              padding: 18, borderRadius: 12, background: T.glassLight,
+              border: `1px solid ${T.glassBorder}`, color: T.textMuted, fontSize: 13,
+              fontFamily: T.body, animation: 'breathe 2s ease-in-out infinite',
+            }}>
+              Waiting for host to start...
             </div>
           )}
         </div>
@@ -810,7 +995,17 @@ export default function App() {
   }
 
   if (!gs) {
-    return <div style={{ ...cBase, background: darkBg }}><div style={{ color: '#8899aa', fontSize: 14 }}>Loading... ⏳</div></div>;
+    return (
+      <div style={{ ...cBase, background: darkBg }}>
+        <div style={{ color: T.textMuted, fontSize: 14, fontFamily: T.body, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 32, height: 32, border: `2px solid ${T.goldBorder}`,
+            borderTop: `2px solid ${T.gold}`, borderRadius: '50%', animation: 'spin 1s linear infinite',
+          }} />
+          <span>Loading...</span>
+        </div>
+      </div>
+    );
   }
 
   // CUT JOKER
@@ -821,35 +1016,45 @@ export default function App() {
     const amSpectator = meObj?.spectator;
 
     return (
-      <div style={{ ...cBase, background: 'linear-gradient(145deg,#0a1628,#1a2a48,#0d1f36)' }}>
+      <div style={{ ...cBase, background: `radial-gradient(circle at 50% 30%, rgba(212,175,55,0.05) 0%, transparent 50%), ${darkBg}` }}>
         <Watermark />
-        <div style={{ ...box, padding: '36px 28px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: 13, color: '#8899aa', letterSpacing: 1, marginBottom: 4 }}>ROUND {gs.round}</div>
-          <h2 style={{ color: '#e8d5b7', fontSize: 22, fontWeight: 400, margin: '0 0 6px', letterSpacing: 2 }}>✂️ CUT THE JOKER</h2>
-          <p style={{ color: '#8899aa', fontSize: 12, margin: '0 0 6px' }}>Dealer: <span style={{ color: '#d4a853' }}>{dealerName}</span></p>
-          <p style={{ color: '#a0b0c0', fontSize: 13, margin: '0 0 24px' }}>
-            {amSpectator ? 'Watching — you\'ll play next round!' : isCutter ? "Your turn to cut!" : cutterName + " is cutting..."}
+        <div style={{ ...box, padding: '36px 28px', textAlign: 'center', position: 'relative', zIndex: 1, animation: 'fadeSlideUp 0.4s ease-out' }}>
+          <div style={{ fontSize: 13, color: T.textMuted, letterSpacing: 1.5, marginBottom: 4, fontFamily: T.body, fontWeight: 600 }}>ROUND {gs.round}</div>
+          <h2 style={{ color: T.textPrimary, fontSize: 24, fontWeight: 700, margin: '0 0 6px', letterSpacing: 3, fontFamily: T.display }}>CUT THE JOKER</h2>
+          <div style={{ width: 60, height: 2, background: `linear-gradient(to right, transparent, ${T.gold}, transparent)`, margin: '8px auto 12px' }} />
+          <p style={{ color: T.textMuted, fontSize: 12, margin: '0 0 6px', fontFamily: T.body }}>Dealer: <span style={{ color: T.goldText }}>{dealerName}</span></p>
+          <p style={{ color: T.textSecondary, fontSize: 13, margin: '0 0 24px', fontFamily: T.body }}>
+            {amSpectator ? "Watching — you'll play next round!" : isCutter ? "Your turn to cut!" : cutterName + " is cutting..."}
           </p>
 
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24, position: 'relative', height: 100 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28, position: 'relative', height: 110 }}>
+            <div style={{
+              position: 'absolute', bottom: -10, left: '50%', transform: 'translateX(-50%)',
+              width: 200, height: 40, background: 'radial-gradient(ellipse, rgba(212,175,55,0.08) 0%, transparent 70%)',
+              borderRadius: '50%', pointerEvents: 'none',
+            }} />
             {[...Array(7)].map((_, i) => (
               <div key={i} style={{
-                position: 'absolute', left: 'calc(50% + ' + ((i - 3) * 20) + 'px - 29px)',
+                position: 'absolute', left: 'calc(50% + ' + ((i - 3) * 22) + 'px - 29px)',
                 transform: 'rotate(' + ((i - 3) * 6) + 'deg)', transformOrigin: 'bottom center',
               }}><Card card={{}} faceDown /></div>
             ))}
           </div>
 
           {amSpectator ? (
-            <div style={{ color: '#8e6a3a', fontSize: 13, padding: 12, background: 'rgba(142,106,58,0.1)', borderRadius: 8, border: '1px solid rgba(142,106,58,0.2)' }}>
-              👀 Spectating · You'll join next round
-            </div>
+            <div style={{
+              color: T.warning, fontSize: 13, padding: 14, background: 'rgba(142,106,58,0.1)',
+              borderRadius: 12, border: '1px solid rgba(142,106,58,0.2)', fontFamily: T.body,
+            }}>Spectating · You'll join next round</div>
           ) : isCutter ? (
-            <button onClick={performCut} disabled={loading} style={{ ...outBtn, opacity: loading ? 0.6 : 1 }}>
+            <button onClick={performCut} disabled={loading} style={{
+              ...outBtn, opacity: loading ? 0.6 : 1,
+              animation: 'glowPulse 2s ease-in-out infinite',
+            }}>
               {loading ? 'CUTTING...' : 'CUT CARD'}
             </button>
           ) : (
-            <div style={{ color: '#667', fontSize: 13, animation: 'pulse 2s infinite' }}>Waiting for {cutterName}... ⏳</div>
+            <div style={{ color: T.textDim, fontSize: 13, animation: 'pulse 2s infinite', fontFamily: T.body }}>Waiting for {cutterName}...</div>
           )}
         </div>
       </div>
@@ -862,27 +1067,36 @@ export default function App() {
     const amIPacked = (gs.packed || []).includes(myId);
     const amSpectator = me?.spectator;
 
-    // Spectator view (late join or eliminated or packed)
+    // Spectator view
     if (amSpectator || amIPacked || !me || me.eliminated) {
-      const label = amSpectator ? '👀 SPECTATING' : amIPacked ? '🏳️ PACKED' : '💀 ELIMINATED';
+      const label = amSpectator ? 'SPECTATING' : amIPacked ? 'PACKED' : 'ELIMINATED';
+      const accent = amSpectator ? T.info : amIPacked ? T.warning : T.danger;
       const subtitle = amSpectator ? "You'll play next round!" : amIPacked ? `+${DROP_PENALTY} pts · Watching` : 'Watching...';
       return (
         <div style={{ ...cBase, background: darkBg }}>
           <Watermark />
-          <div style={{ ...box, padding: 36, textAlign: 'center', position: 'relative', zIndex: 1 }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>{amSpectator ? '👀' : amIPacked ? '🏳️' : '💀'}</div>
-            <h2 style={{ color: amIPacked ? '#e8a85c' : '#e74c3c', fontSize: 20, fontWeight: 400, letterSpacing: 2 }}>{label}</h2>
-            <p style={{ color: '#8899aa', fontSize: 13, marginTop: 8 }}>{subtitle} · Round {gs.round}</p>
-            <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0' }}><WildBadge cut={cut} /></div>
+          <div style={{ ...box, padding: 36, textAlign: 'center', position: 'relative', zIndex: 1, animation: 'fadeSlideUp 0.4s ease-out' }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: '50%', margin: '0 auto 16px',
+              background: `rgba(${accent === T.info ? '93,173,226' : accent === T.warning ? '232,168,92' : '231,76,60'},0.12)`,
+              border: `2px solid ${accent}33`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
+            }}>{amSpectator ? '👀' : amIPacked ? '🏳️' : '💀'}</div>
+            <h2 style={{ color: accent, fontSize: 20, fontWeight: 700, letterSpacing: 3, fontFamily: T.display }}>{label}</h2>
+            <p style={{ color: T.textMuted, fontSize: 13, marginTop: 8, fontFamily: T.body }}>{subtitle} · Round {gs.round}</p>
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0' }}><WildBadge cut={cut} /></div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '8px 0' }}>
               <DiscardLog log={gs.discardLog} cutCard={cut} />
             </div>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: 10 }}>
               {gs.players.filter(p => !p.eliminated && !p.spectator).map(p => {
                 const isPacked = (gs.packed || []).includes(p.id);
                 const isCur = p.id === gs.players[gs.currentPlayer]?.id;
                 return (
-                  <div key={p.id} style={{ color: isPacked ? '#8e6a3a' : isCur ? '#4ade80' : '#b0c4d8', fontSize: 13, lineHeight: 2 }}>
+                  <div key={p.id} style={{
+                    color: isPacked ? '#8e6a3a' : isCur ? T.success : T.textSecondary,
+                    fontSize: 13, lineHeight: 2, fontFamily: T.body,
+                  }}>
                     {isCur ? '▶ ' : '  '}{p.name}: {p.score}{isPacked ? ' 🏳️' : ''}
                   </div>
                 );
@@ -897,33 +1111,49 @@ export default function App() {
     const curName = gs.players[gs.currentPlayer]?.name || '?';
 
     return (
-      <div style={{ minHeight: '100vh', background: greenBg, fontFamily: font, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        <Watermark />
+      <div style={{ minHeight: '100vh', background: greenBg, fontFamily: T.body, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        {/* Vignette */}
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(0,0,0,0.4) 100%)',
+          pointerEvents: 'none', zIndex: 0,
+        }} />
+        {/* Ambient glow */}
+        <div style={{
+          position: 'fixed', top: '25%', left: '50%', transform: 'translateX(-50%)',
+          width: 500, height: 300,
+          background: 'radial-gradient(ellipse, rgba(212,175,55,0.04) 0%, transparent 70%)',
+          pointerEvents: 'none', zIndex: 0,
+        }} />
 
         {/* Top Bar */}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '8px 12px', background: 'rgba(0,0,0,0.35)', borderBottom: '1px solid rgba(255,255,255,0.08)',
-          flexWrap: 'wrap', gap: 4, position: 'relative', zIndex: 2,
+          padding: '10px 16px', background: 'rgba(0,0,0,0.45)',
+          borderBottom: `1px solid rgba(255,255,255,0.06)`,
+          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+          flexWrap: 'wrap', gap: 6, position: 'relative', zIndex: 2,
         }}>
           <div>
-            <span style={{ color: '#e8d5b7', fontSize: 14, fontWeight: 600 }}>{me.name}</span>
-            <span style={{ color: '#8a9a6a', fontSize: 11, marginLeft: 8 }}>Score: {me.score}</span>
+            <span style={{ color: T.textPrimary, fontSize: 15, fontWeight: 600, fontFamily: T.body }}>{me.name}</span>
+            <span style={{ color: T.goldText, fontSize: 12, marginLeft: 10, fontFamily: T.display, fontWeight: 600 }}>Score: {me.score}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <DiscardLog log={gs.discardLog} cutCard={cut} />
-            <span style={{ color: '#8a9a6a', fontSize: 11 }}>R{gs.round} · {hand.length} cards · {roomCode}</span>
+            <span style={{ color: T.textMuted, fontSize: 11, fontFamily: T.body }}>R{gs.round} · {hand.length} cards · {roomCode}</span>
           </div>
         </div>
 
         {/* Wild + Turn */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px 12px', gap: 6, position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 12px', gap: 8, position: 'relative', zIndex: 1 }}>
           <WildBadge cut={cut} />
           <div style={{
-            padding: '6px 16px', borderRadius: 20,
-            background: isMyTurn ? 'rgba(74,222,128,0.12)' : 'rgba(255,255,255,0.04)',
-            border: '1px solid ' + (isMyTurn ? 'rgba(74,222,128,0.3)' : 'rgba(255,255,255,0.06)'),
-            color: isMyTurn ? '#4ade80' : '#8899aa', fontSize: 13, fontWeight: 600,
+            padding: '8px 20px', borderRadius: 24,
+            background: isMyTurn ? 'rgba(56,193,114,0.12)' : T.glassLight,
+            border: `1px solid ${isMyTurn ? 'rgba(56,193,114,0.3)' : T.glassBorder}`,
+            color: isMyTurn ? T.success : T.textMuted, fontSize: 14, fontWeight: 700, fontFamily: T.body,
+            animation: isMyTurn ? 'breathe 2s ease-in-out infinite' : 'none',
+            transition: 'all 0.3s ease',
           }}>
             {isMyTurn ? '🎯 YOUR TURN' : '⏳ ' + curName + "'s turn"}
           </div>
@@ -936,30 +1166,37 @@ export default function App() {
             const isCurrent = p.id === gs.players[gs.currentPlayer]?.id;
             return (
               <span key={p.id} style={{
-                fontSize: 11, padding: '2px 8px', borderRadius: 10,
-                background: isCurrent ? 'rgba(74,222,128,0.1)' : isPacked ? 'rgba(142,106,58,0.15)' : 'rgba(0,0,0,0.2)',
-                color: isCurrent ? '#4ade80' : isPacked ? '#8e6a3a' : '#7a9a6a',
-                border: '1px solid ' + (isCurrent ? 'rgba(74,222,128,0.2)' : 'transparent'),
+                fontSize: 11, padding: '3px 10px', borderRadius: 12,
+                background: isCurrent ? 'rgba(56,193,114,0.12)' : isPacked ? 'rgba(142,106,58,0.15)' : 'rgba(0,0,0,0.25)',
+                color: isCurrent ? T.success : isPacked ? '#8e6a3a' : T.textMuted,
+                border: `1px solid ${isCurrent ? 'rgba(56,193,114,0.25)' : 'transparent'}`,
                 textDecoration: isPacked ? 'line-through' : 'none',
+                fontFamily: T.body, fontWeight: 500,
+                transition: 'all 0.3s ease',
               }}>{p.name}: {p.score}{isPacked ? ' 🏳️' : ''}</span>
             );
           })}
         </div>
 
         {/* Piles */}
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 28, padding: '8px 16px 4px', position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 32, padding: '10px 16px 6px', position: 'relative', zIndex: 1 }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ color: '#7a9a6a', fontSize: 9, letterSpacing: 1, marginBottom: 4 }}>STOCK ({gs.stockPile?.length || 0})</div>
+            <div style={{ color: T.textMuted, fontSize: 9, letterSpacing: 1.5, marginBottom: 5, fontFamily: T.display, fontWeight: 600 }}>STOCK ({gs.stockPile?.length || 0})</div>
             <Card card={{}} faceDown onClick={isMyTurn && !drawn ? drawFromStock : undefined}
               style={{ cursor: isMyTurn && !drawn ? 'pointer' : 'default', opacity: !isMyTurn || drawn ? 0.4 : 1 }} />
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ color: '#7a9a6a', fontSize: 9, letterSpacing: 1, marginBottom: 4 }}>DISCARD</div>
+            <div style={{ color: T.textMuted, fontSize: 9, letterSpacing: 1.5, marginBottom: 5, fontFamily: T.display, fontWeight: 600 }}>DISCARD</div>
             {topDisc ? (
               <Card card={topDisc} cutCard={cut} onClick={isMyTurn && !drawn ? drawFromDiscard : undefined}
                 style={{ cursor: isMyTurn && !drawn ? 'pointer' : 'default', opacity: !isMyTurn || drawn ? 0.4 : 1 }} />
             ) : (
-              <div style={{ width: 68, height: 98, borderRadius: 8, border: '2px dashed rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#557755', fontSize: 11 }}>Empty</div>
+              <div style={{
+                width: 72, height: 104, borderRadius: 10,
+                border: `2px dashed ${T.goldBorder}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: T.textDim, fontSize: 11, fontFamily: T.body,
+              }}>Empty</div>
             )}
           </div>
         </div>
@@ -968,14 +1205,15 @@ export default function App() {
         {isMyTurn && !drawn && (() => {
           const canPack = !(gs.hasDrawnOnce || []).includes(myId);
           return (
-            <div style={{ textAlign: 'center', padding: '4px 0', position: 'relative', zIndex: 1 }}>
-              <p style={{ color: '#a0c890', fontSize: 12, margin: '2px 0' }}>↑ Tap a pile to draw ↑</p>
+            <div style={{ textAlign: 'center', padding: '6px 0', position: 'relative', zIndex: 1 }}>
+              <p style={{ color: T.success, fontSize: 12, margin: '2px 0', fontFamily: T.body, fontWeight: 500, opacity: 0.8 }}>↑ Tap a pile to draw ↑</p>
               {canPack && (
                 <button onClick={dropPack} style={{
-                  marginTop: 6, padding: '8px 24px', borderRadius: 8,
-                  border: '1px solid rgba(231,76,60,0.4)', background: 'rgba(231,76,60,0.12)',
-                  color: '#e74c3c', fontSize: 12, cursor: 'pointer', fontFamily: font,
-                  fontWeight: 600, letterSpacing: 1,
+                  marginTop: 8, padding: '10px 28px', borderRadius: 10,
+                  border: '1px solid rgba(231,76,60,0.35)', background: 'rgba(231,76,60,0.1)',
+                  backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+                  color: T.danger, fontSize: 12, cursor: 'pointer', fontFamily: T.body,
+                  fontWeight: 600, letterSpacing: 0.5, transition: 'all 0.2s ease',
                 }}>🏳️ PACK (+{DROP_PENALTY} pts)</button>
               )}
             </div>
@@ -983,7 +1221,7 @@ export default function App() {
         })()}
 
         {/* Hand */}
-        <div style={{ flex: 1, padding: '6px 10px', overflowY: 'auto', paddingBottom: 150, position: 'relative', zIndex: 1 }}
+        <div style={{ flex: 1, padding: '8px 12px', overflowY: 'auto', paddingBottom: 150, position: 'relative', zIndex: 1 }}
           onTouchMove={handleDragMove} onTouchEnd={handleDragEnd}
           onMouseMove={handleDragMove} onMouseUp={handleDragEnd}>
           {groups.map((gids, gi) => {
@@ -993,23 +1231,24 @@ export default function App() {
             return (
               <div key={gi} ref={el => groupRefs.current[gi] = el}
                 style={{
-                  marginBottom: 10, padding: '6px 6px 8px', borderRadius: 10,
-                  background: isDropHere ? 'rgba(74,222,128,0.08)' : 'transparent',
-                  border: '1.5px dashed ' + (isDropHere ? 'rgba(74,222,128,0.4)' : 'transparent'),
-                  transition: 'all 0.15s',
+                  marginBottom: 12, padding: '8px 8px 10px', borderRadius: 14,
+                  background: isDropHere ? 'rgba(56,193,114,0.08)' : 'rgba(0,0,0,0.12)',
+                  border: `1.5px dashed ${isDropHere ? 'rgba(56,193,114,0.4)' : 'rgba(255,255,255,0.06)'}`,
+                  transition: 'all 0.2s ease',
                 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                  <span style={{ color: m.ok ? '#4ade80' : '#7a9a6a', fontSize: 10, letterSpacing: 1, fontWeight: 600 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ color: m.ok ? T.success : T.textMuted, fontSize: 10, letterSpacing: 1, fontWeight: 600, fontFamily: T.body }}>
                     {m.ok ? (m.type === 'pure' ? '✓ PURE SEQ' : m.type === 'impure' ? '✓ SEQUENCE' : '✓ SET') : 'GROUP ' + (gi + 1)}
                   </span>
                   {sel.size > 0 && (
                     <button onClick={() => moveToGroup(gi)} style={{
-                      padding: '1px 7px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)',
-                      background: 'rgba(255,255,255,0.06)', color: '#b0c4d8', fontSize: 9, cursor: 'pointer', fontFamily: font,
+                      padding: '2px 8px', borderRadius: 6, border: `1px solid ${T.glassBorder}`,
+                      background: T.glassLight, color: T.textSecondary, fontSize: 9,
+                      cursor: 'pointer', fontFamily: T.body, transition: 'all 0.15s',
                     }}>+ here</button>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', minHeight: 44 }}>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', minHeight: 48 }}>
                   {cards.map((card, ci) => {
                     const beingDragged = dragCard && dragCard.id === card.id;
                     const showInsertBefore = isDropHere && dropTarget.position === ci;
@@ -1017,9 +1256,9 @@ export default function App() {
                       <div key={card.id} style={{ display: 'flex', alignItems: 'center' }}>
                         {showInsertBefore && (
                           <div style={{
-                            width: 4, height: 64, borderRadius: 2,
-                            background: '#4ade80', marginRight: 2, flexShrink: 0,
-                            boxShadow: '0 0 8px rgba(74,222,128,0.5)',
+                            width: 4, height: 68, borderRadius: 2,
+                            background: T.success, marginRight: 2, flexShrink: 0,
+                            boxShadow: `0 0 8px rgba(56,193,114,0.5)`,
                           }} />
                         )}
                         <div ref={el => cardRefs.current[card.id] = el}
@@ -1035,9 +1274,9 @@ export default function App() {
                   })}
                   {isDropHere && dropTarget.position >= cards.length && (
                     <div style={{
-                      width: 4, height: 64, borderRadius: 2,
-                      background: '#4ade80', marginLeft: 2, flexShrink: 0,
-                      boxShadow: '0 0 8px rgba(74,222,128,0.5)',
+                      width: 4, height: 68, borderRadius: 2,
+                      background: T.success, marginLeft: 2, flexShrink: 0,
+                      boxShadow: `0 0 8px rgba(56,193,114,0.5)`,
                     }} />
                   )}
                 </div>
@@ -1046,11 +1285,11 @@ export default function App() {
           })}
           {dragCard && (
             <div style={{
-              marginTop: 4, padding: '12px', borderRadius: 10,
-              border: '1.5px dashed ' + (dropTarget && dropTarget.groupIdx === -1 ? 'rgba(74,222,128,0.5)' : 'rgba(255,255,255,0.1)'),
-              background: dropTarget && dropTarget.groupIdx === -1 ? 'rgba(74,222,128,0.08)' : 'rgba(255,255,255,0.02)',
-              textAlign: 'center', color: dropTarget && dropTarget.groupIdx === -1 ? '#4ade80' : '#556655',
-              fontSize: 11, transition: 'all 0.15s',
+              marginTop: 4, padding: '14px', borderRadius: 14,
+              border: `1.5px dashed ${dropTarget && dropTarget.groupIdx === -1 ? 'rgba(56,193,114,0.5)' : 'rgba(255,255,255,0.08)'}`,
+              background: dropTarget && dropTarget.groupIdx === -1 ? 'rgba(56,193,114,0.08)' : T.glassLight,
+              textAlign: 'center', color: dropTarget && dropTarget.groupIdx === -1 ? T.success : T.textDim,
+              fontSize: 11, transition: 'all 0.15s', fontFamily: T.body,
             }}>+ Drop here for new group</div>
           )}
         </div>
@@ -1061,10 +1300,11 @@ export default function App() {
           if (!card) return null;
           return (
             <div style={{
-              position: 'fixed', left: dragPos.x - 27, top: dragPos.y - 39,
+              position: 'fixed', left: dragPos.x - 29, top: dragPos.y - 42,
               zIndex: 9999, pointerEvents: 'none',
-              transform: 'scale(1.15) rotate(-3deg)',
-              filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.5))',
+              transform: 'scale(1.2) rotate(-4deg)',
+              filter: 'drop-shadow(0 12px 28px rgba(0,0,0,0.6))',
+              opacity: 0.92,
             }}><Card card={card} cutCard={cut} small glow /></div>
           );
         })()}
@@ -1072,13 +1312,14 @@ export default function App() {
         {/* Actions */}
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
-          background: 'linear-gradient(to top,rgba(0,0,0,0.92) 60%,transparent)', padding: '20px 14px 16px',
-          zIndex: 10,
+          background: 'linear-gradient(to top, rgba(5,10,20,0.95) 50%, rgba(5,10,20,0.7) 80%, transparent)',
+          padding: '24px 16px 18px', zIndex: 10,
+          borderTop: `1px solid ${T.glassBorder}`,
         }}>
-          {err && <p style={{ color: '#e74c3c', fontSize: 11, textAlign: 'center', margin: '0 0 6px' }}>{err}</p>}
+          {err && <p style={{ color: T.danger, fontSize: 11, textAlign: 'center', margin: '0 0 6px', fontFamily: T.body }}>{err}</p>}
           <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
             {sel.size >= 2 && <button onClick={makeGroup} style={abtn('#2980b9')}>Group ({sel.size})</button>}
-            {sel.size > 0 && <button onClick={() => setSel(new Set())} style={abtn('#7f8c8d')}>Deselect</button>}
+            {sel.size > 0 && <button onClick={() => setSel(new Set())} style={abtn('#5a6a7a')}>Deselect</button>}
             <button onClick={sortInGroups} style={abtn('#2c6e49')}>Sort</button>
             <button onClick={ungroupAction} style={abtn('#8e6a3a')}>
               {sel.size > 0 ? 'To G1 (' + sel.size + ')' : 'Ungroup'}
@@ -1086,15 +1327,18 @@ export default function App() {
             {isMyTurn && drawn && sel.size === 1 && (
               <button onClick={discardSelected} style={{
                 ...abtn('#c0392b'), background: 'linear-gradient(135deg,#c0392b,#922b21)',
+                boxShadow: '0 2px 12px rgba(192,57,43,0.35)',
               }}>🗑 DISCARD</button>
             )}
             {isMyTurn && drawn && sel.size === 1 && hand.length === 14 && (
-              <button onClick={declareShow} style={{ ...abtn('#d4a853'), background: 'linear-gradient(135deg,#d4a853,#b8862d)', color: '#1a1a2e' }}>
-                🏆 SHOW
-              </button>
+              <button onClick={declareShow} style={{
+                ...abtn(T.gold), background: `linear-gradient(135deg, ${T.goldLight}, ${T.gold}, ${T.goldDark})`,
+                color: T.bgDeepest, fontWeight: 700,
+                animation: 'glowPulse 2s ease-in-out infinite',
+              }}>🏆 SHOW</button>
             )}
           </div>
-          <p style={{ color: '#7a9a6a', fontSize: 10, textAlign: 'center', margin: '6px 0 0' }}>
+          <p style={{ color: T.textMuted, fontSize: 10, textAlign: 'center', margin: '8px 0 0', fontFamily: T.body }}>
             {isMyTurn && drawn
               ? 'Select 1 card → DISCARD or SHOW'
               : 'Hold & drag to rearrange · Tap to select'}
@@ -1111,19 +1355,24 @@ export default function App() {
     return (
       <div style={{ ...cBase, background: darkBg }}>
         <Watermark />
-        <div style={{ ...box, padding: '28px 24px', position: 'relative', zIndex: 1 }}>
-          <h2 style={{ color: '#e8d5b7', textAlign: 'center', margin: '0 0 4px', fontSize: 22, fontWeight: 400, letterSpacing: 2 }}>
-            {gs.invalidShow ? '❌ INVALID SHOW' : '🏆 ROUND COMPLETE'}
+        <div style={{ ...box, padding: '32px 28px', position: 'relative', zIndex: 1, animation: 'fadeSlideUp 0.4s ease-out' }}>
+          <h2 style={{
+            color: gs.invalidShow ? T.danger : T.textPrimary, textAlign: 'center',
+            margin: '0 0 4px', fontSize: 24, fontWeight: 700, letterSpacing: 3, fontFamily: T.display,
+          }}>
+            {gs.invalidShow ? 'INVALID SHOW' : 'ROUND COMPLETE'}
           </h2>
-          <p style={{ color: '#8899aa', textAlign: 'center', margin: '0 0 12px', fontSize: 12 }}>
+          <div style={{ width: 60, height: 2, background: `linear-gradient(to right, transparent, ${gs.invalidShow ? T.danger : T.gold}, transparent)`, margin: '8px auto 12px' }} />
+          <p style={{ color: T.textMuted, textAlign: 'center', margin: '0 0 14px', fontSize: 12, fontFamily: T.body }}>
             {gs.invalidShow ? decName + ' invalid show! (+80)' : decName + ' wins!'}
           </p>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><WildBadge cut={cut} /></div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}><WildBadge cut={cut} /></div>
 
-          <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.glassBorder}` }}>
             <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 70px 70px', padding: '6px 14px',
-              background: 'rgba(255,255,255,0.04)', color: '#8899aa', fontSize: 10, letterSpacing: 1,
+              display: 'grid', gridTemplateColumns: '1fr 70px 70px', padding: '8px 16px',
+              background: T.glassLight, color: T.textMuted,
+              fontSize: 10, letterSpacing: 1.5, fontFamily: T.display, fontWeight: 600,
             }}>
               <span>PLAYER</span><span style={{ textAlign: 'right' }}>PEN</span><span style={{ textAlign: 'right' }}>TOTAL</span>
             </div>
@@ -1131,17 +1380,18 @@ export default function App() {
               if (gs.players[i]?.eliminated && !r.wasElim) return null;
               return (
                 <div key={i} style={{
-                  display: 'grid', gridTemplateColumns: '1fr 70px 70px', padding: '8px 14px',
-                  borderTop: '1px solid rgba(255,255,255,0.04)',
-                  background: r.wasElim ? 'rgba(192,57,43,0.1)' : r.winner ? 'rgba(46,204,113,0.08)' : 'transparent',
+                  display: 'grid', gridTemplateColumns: '1fr 70px 70px', padding: '9px 16px',
+                  borderTop: `1px solid rgba(255,255,255,0.04)`,
+                  background: r.wasElim ? 'rgba(231,76,60,0.08)' : r.winner ? 'rgba(212,175,55,0.08)' : 'transparent',
+                  animation: `fadeSlideUp ${0.15 + i * 0.06}s ease-out`,
                 }}>
-                  <span style={{ color: r.winner ? '#4ade80' : r.wasElim ? '#e74c3c' : '#b0c4d8', fontSize: 13 }}>
+                  <span style={{ color: r.winner ? T.success : r.wasElim ? T.danger : T.textSecondary, fontSize: 13, fontFamily: T.body }}>
                     {r.winner ? '👑 ' : ''}{r.name}{r.wasElim ? ' 💀' : r.packed ? ' 🏳️' : ''}
                   </span>
-                  <span style={{ textAlign: 'right', color: r.penalty ? '#e8a85c' : '#4ade80', fontSize: 13, fontWeight: 700 }}>
+                  <span style={{ textAlign: 'right', color: r.penalty ? T.warning : T.success, fontSize: 13, fontWeight: 700, fontFamily: T.body }}>
                     {r.penalty ? '+' + r.penalty : '0'}
                   </span>
-                  <span style={{ textAlign: 'right', color: '#b0c4d8', fontSize: 13, fontWeight: 700 }}>
+                  <span style={{ textAlign: 'right', color: T.textSecondary, fontSize: 13, fontWeight: 700, fontFamily: T.body }}>
                     {r.newScore !== undefined ? r.newScore : gs.players[i]?.score}
                   </span>
                 </div>
@@ -1151,20 +1401,20 @@ export default function App() {
 
           {gs.roundResults?.some(r => r.wasElim) && (
             <div style={{
-              marginTop: 12, padding: 10, borderRadius: 8,
-              background: 'rgba(192,57,43,0.1)', border: '1px solid rgba(192,57,43,0.2)',
-              color: '#e74c3c', fontSize: 12, textAlign: 'center',
+              marginTop: 14, padding: 14, borderRadius: 12,
+              background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.25)',
+              color: T.danger, fontSize: 12, textAlign: 'center', fontFamily: T.body,
             }}>
               {gs.roundResults.filter(r => r.wasElim).map(r => r.name).join(', ')} eliminated!
             </div>
           )}
 
           {isHost ? (
-            <button onClick={nextRound} style={{ ...goldBtn, marginTop: 20 }}>
+            <button onClick={nextRound} style={{ ...goldBtn, marginTop: 22 }}>
               {active.length <= 2 ? 'SEE RESULTS' : 'NEXT ROUND'}
             </button>
           ) : (
-            <div style={{ marginTop: 20, color: '#667', fontSize: 13, textAlign: 'center' }}>Waiting for host... ⏳</div>
+            <div style={{ marginTop: 22, color: T.textDim, fontSize: 13, textAlign: 'center', fontFamily: T.body, animation: 'pulse 2s infinite' }}>Waiting for host...</div>
           )}
         </div>
       </div>
@@ -1176,28 +1426,39 @@ export default function App() {
     const active = gs.players.filter(p => !p.eliminated);
     const winner = active.length === 1 ? active[0] : gs.players.reduce((a, b) => a.score < b.score ? a : b);
     const sorted = [...gs.players].sort((a, b) => a.score - b.score);
+    const rankColors = [T.gold, '#c0c0c0', '#cd7f32'];
     return (
       <div style={{ ...cBase, background: darkBg }}>
         <Watermark />
-        <div style={{ ...box, padding: '36px 24px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: 52, marginBottom: 8 }}>👑</div>
-          <h2 style={{ color: '#d4a853', fontSize: 26, fontWeight: 400, margin: '0 0 4px', letterSpacing: 2 }}>{winner.name} WINS!</h2>
-          <p style={{ color: '#556', fontSize: 10, letterSpacing: 1, margin: '2px 0 4px' }}>CHALARAGERS</p>
-          <p style={{ color: '#8899aa', fontSize: 12, margin: '0 0 28px' }}>After {gs.round} rounds</p>
-          <div style={{ textAlign: 'left', borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ ...box, padding: '40px 28px', textAlign: 'center', position: 'relative', zIndex: 1, animation: 'fadeSlideUp 0.5s ease-out' }}>
+          <div style={{ fontSize: 56, marginBottom: 10, animation: 'fadeSlideUp 0.5s ease-out' }}>👑</div>
+          <h2 style={{
+            color: T.gold, fontSize: 28, fontWeight: 700, margin: '0 0 4px',
+            letterSpacing: 3, fontFamily: T.display,
+            textShadow: '0 2px 20px rgba(212,175,55,0.3)',
+          }}>{winner.name} WINS!</h2>
+          <p style={{ color: T.textDim, fontSize: 10, letterSpacing: 3, margin: '2px 0 4px', fontFamily: T.display }}>CHALARAGERS</p>
+          <p style={{ color: T.textMuted, fontSize: 12, margin: '0 0 28px', fontFamily: T.body }}>After {gs.round} rounds</p>
+
+          <div style={{ textAlign: 'left', borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.glassBorder}` }}>
             {sorted.map((p, i) => (
               <div key={i} style={{
-                display: 'flex', justifyContent: 'space-between', padding: '9px 14px',
-                borderTop: i ? '1px solid rgba(255,255,255,0.04)' : 'none',
-                color: p.eliminated ? '#555' : i === 0 ? '#d4a853' : '#b0c4d8',
+                display: 'flex', justifyContent: 'space-between', padding: '11px 16px',
+                borderTop: i ? `1px solid rgba(255,255,255,0.04)` : 'none',
+                color: p.eliminated ? T.textDim : i < 3 ? rankColors[i] : T.textSecondary,
+                background: i === 0 ? 'rgba(212,175,55,0.06)' : 'transparent',
+                animation: `fadeSlideUp ${0.2 + i * 0.06}s ease-out`,
               }}>
-                <span style={{ fontSize: 13 }}>{i === 0 ? '👑 ' : (i + 1) + '. '}{p.name}{p.eliminated ? ' 💀' : ''}</span>
-                <span style={{ fontWeight: 700, fontSize: 13 }}>{p.score}</span>
+                <span style={{ fontSize: 13, fontFamily: T.body, fontWeight: i === 0 ? 700 : 400 }}>
+                  {i === 0 ? '👑 ' : (i + 1) + '. '}{p.name}{p.eliminated ? ' 💀' : ''}
+                </span>
+                <span style={{ fontWeight: 700, fontSize: 13, fontFamily: T.display }}>{p.score}</span>
               </div>
             ))}
           </div>
+
           <button onClick={() => { setScreen('home'); setGs(null); setHand([]); setGroups([]); }}
-            style={{ ...goldBtn, marginTop: 20 }}>NEW GAME</button>
+            style={{ ...goldBtn, marginTop: 24 }}>NEW GAME</button>
         </div>
       </div>
     );
@@ -1205,15 +1466,25 @@ export default function App() {
 
   return (
     <div style={{ ...cBase, background: darkBg }}>
-      <div style={{ color: '#8899aa', fontSize: 14, animation: 'pulse 2s infinite' }}>Loading game... ⏳</div>
+      <div style={{ color: T.textMuted, fontSize: 14, fontFamily: T.body, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+        <div style={{
+          width: 32, height: 32, border: `2px solid ${T.goldBorder}`,
+          borderTop: `2px solid ${T.gold}`, borderRadius: '50%', animation: 'spin 1s linear infinite',
+        }} />
+        <span style={{ animation: 'pulse 2s ease-in-out infinite' }}>Loading game...</span>
+      </div>
     </div>
   );
 }
 
 function abtn(bg) {
   return {
-    padding: '9px 16px', borderRadius: 8, border: 'none', background: bg, color: '#fff',
-    fontSize: 12, cursor: 'pointer', fontFamily: "Georgia,serif", letterSpacing: 1,
-    fontWeight: 600, boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+    padding: '10px 18px', borderRadius: 10, border: 'none',
+    background: `linear-gradient(135deg, ${bg}, ${bg}dd)`,
+    color: '#fff', fontSize: 12, cursor: 'pointer',
+    fontFamily: T.body, letterSpacing: 0.5, fontWeight: 600,
+    boxShadow: `0 2px 10px ${bg}44`,
+    transition: 'all 0.2s ease',
+    position: 'relative', overflow: 'hidden',
   };
 }
