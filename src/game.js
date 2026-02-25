@@ -7,6 +7,7 @@ export const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q
 export const RANK_VALUES = { A: 10, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, J: 10, Q: 10, K: 10 };
 export const RANK_ORDER = { A: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, J: 11, Q: 12, K: 13 };
 export const MAX_PENALTY = 80;
+export const DROP_PENALTY = 25;
 export const ELIM_SCORE = 201;
 
 // ─── Deck ────────────────────────────────────────────────────────────
@@ -123,11 +124,32 @@ export function validateShow(groups, cut) {
 
 export function calcPenalty(groups, cut) {
   const vs = groups.map(g => ({ cards: g, ...validateMeld(g, cut) }));
-  const pure = vs.some(v => v.type === 'pure');
-  const seq2 = vs.filter(v => v.type === 'pure' || v.type === 'impure').length >= 2;
-  if (!pure || !seq2) return MAX_PENALTY;
+  const hasPure = vs.some(v => v.type === 'pure');
+
+  // No pure sequence at all = count ALL cards, cap at 80
+  if (!hasPure) {
+    let total = 0;
+    for (const v of vs) total += v.cards.reduce((s, c) => s + cardVal(c), 0);
+    return Math.min(total, MAX_PENALTY);
+  }
+
+  // Check if player has a second sequence (pure or impure)
+  const seqCount = vs.filter(v => v.type === 'pure' || v.type === 'impure').length;
+  const hasSecondSeq = seqCount >= 2;
+
   let p = 0;
-  for (const v of vs) if (!v.ok) p += v.cards.reduce((s, c) => s + cardVal(c), 0);
+  for (const v of vs) {
+    if (v.type === 'pure' || v.type === 'impure') {
+      // Pure sequences always excluded. Impure sequences excluded too.
+      continue;
+    }
+    if (v.type === 'set' && hasSecondSeq) {
+      // Sets only excluded if player has pure + second sequence
+      continue;
+    }
+    // Count all cards in this group as penalty
+    p += v.cards.reduce((s, c) => s + cardVal(c), 0);
+  }
   return Math.min(p, MAX_PENALTY);
 }
 
@@ -155,6 +177,8 @@ export function dealNewRound(state, dealerIdx) {
   state.roundResults = null;
   state.invalidShow = false;
   state.drawn = false;
+  state.hasDrawnOnce = [];  // Track players who have drawn at least once this round
+  state.packed = [];         // Track players who dropped/packed this round
   state._round = (state._round || 0) + 1;
 
   // Cutter = active player before dealer

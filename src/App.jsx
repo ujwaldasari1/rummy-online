@@ -6,7 +6,7 @@ import {
 } from './firebase.js';
 import {
   SUITS, SUIT_COLORS, SUIT_COLOR_GROUP, OPPOSITE_SUITS, RANKS,
-  RANK_VALUES, RANK_ORDER, MAX_PENALTY, ELIM_SCORE,
+  RANK_VALUES, RANK_ORDER, MAX_PENALTY, ELIM_SCORE, DROP_PENALTY,
   createDeck, shuffle, sortHand, isWild, isJkr, cardVal,
   validateMeld, validateShow, calcPenalty, dealNewRound,
   genCode, genId,
@@ -252,6 +252,8 @@ export default function App() {
       }
 
       state.drawn = true;
+      if (!state.hasDrawnOnce) state.hasDrawnOnce = [];
+      if (!state.hasDrawnOnce.includes(myId)) state.hasDrawnOnce.push(myId);
       state._ts = Date.now();
       await saveGameState(roomCode, state);
 
@@ -280,6 +282,8 @@ export default function App() {
 
       const card = state.discardPile.pop();
       state.drawn = true;
+      if (!state.hasDrawnOnce) state.hasDrawnOnce = [];
+      if (!state.hasDrawnOnce.includes(myId)) state.hasDrawnOnce.push(myId);
       state._ts = Date.now();
       await saveGameState(roomCode, state);
 
@@ -292,6 +296,70 @@ export default function App() {
         newGroups.push([card.id]);
       }
       await savePlayerHand(roomCode, myId, newHand, newGroups);
+    } catch (e) {
+      setErr('Error: ' + e.message);
+    }
+  }
+
+  // ── Drop / Pack (only on first turn of round, before drawing) ──
+  async function dropPack() {
+    try {
+      const state = await loadGameState(roomCode);
+      if (!state || state.drawn) return;
+      const myIdx = state.players.findIndex(p => p.id === myId);
+      if (state.currentPlayer !== myIdx) return;
+
+      // Only allowed if player has NEVER drawn this round
+      if ((state.hasDrawnOnce || []).includes(myId)) {
+        setErr("Can't pack after you've drawn a card!");
+        return;
+      }
+
+      // Add 25 penalty
+      const newScore = state.players[myIdx].score + DROP_PENALTY;
+      state.players[myIdx].score = newScore;
+      state.players[myIdx].eliminated = newScore >= ELIM_SCORE;
+
+      // Mark player as packed
+      if (!state.packed) state.packed = [];
+      state.packed.push(myId);
+
+      // Find remaining active non-packed players
+      const ai = state.players.map((p, i) => (!p.eliminated ? i : -1)).filter(i => i >= 0);
+      const playing = ai.filter(i => !(state.packed || []).includes(state.players[i].id));
+
+      if (playing.length <= 1) {
+        // Only one player left — they win the round
+        const winnerId = playing.length === 1 ? playing[0] : null;
+        state.roundResults = state.players.map((p, i) => {
+          if (p.eliminated && !(state.packed || []).includes(p.id)) {
+            return { name: p.name, penalty: 0, elim: true, wasElim: false };
+          }
+          if (winnerId !== null && i === winnerId) {
+            return { name: p.name, penalty: 0, newScore: p.score, elim: false, wasElim: false, winner: true };
+          }
+          if ((state.packed || []).includes(p.id)) {
+            return { name: p.name, penalty: DROP_PENALTY, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true };
+          }
+          return { name: p.name, penalty: 0, newScore: p.score, elim: false, wasElim: false };
+        });
+        state.declarer = winnerId;
+        state.phase = 'roundEnd';
+        state.invalidShow = false;
+      } else {
+        // Next active non-packed player
+        const ci = ai.indexOf(myIdx);
+        let next = ci;
+        do {
+          next = (next + 1) % ai.length;
+        } while ((state.packed || []).includes(state.players[ai[next]].id) || state.players[ai[next]].eliminated);
+        state.currentPlayer = ai[next];
+      }
+
+      state.drawn = false;
+      state._ts = Date.now();
+      await saveGameState(roomCode, state);
+      setErr('');
     } catch (e) {
       setErr('Error: ' + e.message);
     }
@@ -311,10 +379,11 @@ export default function App() {
       if (!state.discardPile) state.discardPile = [];
       state.discardPile.push(card);
 
-      // Next active player
+      // Next active non-packed player
       const ai = state.players.map((p, i) => p.eliminated ? -1 : i).filter(i => i >= 0);
-      const ci = ai.indexOf(myIdx);
-      state.currentPlayer = ai[(ci + 1) % ai.length];
+      const playing = ai.filter(i => !(state.packed || []).includes(state.players[i].id));
+      const ci = playing.indexOf(myIdx);
+      state.currentPlayer = playing[(ci + 1) % playing.length];
       state.drawn = false;
       state._ts = Date.now();
       await saveGameState(roomCode, state);
@@ -350,9 +419,10 @@ export default function App() {
       state.discardPile.push(discC);
 
       if (result.valid) {
-        // Calculate penalties for all other players
+        // Calculate penalties for all other players (skip packed — they already got 25)
         const penaltyPromises = state.players.map(async (p, i) => {
           if (p.eliminated || i === myIdx) return { penalty: 0 };
+          if ((state.packed || []).includes(p.id)) return { penalty: 0, packed: true };
           const ph = await loadPlayerHand(roomCode, p.id);
           if (!ph || !ph.hand) return { penalty: MAX_PENALTY };
           const pg = (ph.groups || [ph.hand.map(c => c.id)]).map(g =>
@@ -365,14 +435,18 @@ export default function App() {
         state.roundResults = state.players.map((p, i) => {
           if (p.eliminated) return { name: p.name, penalty: 0, elim: true, wasElim: false };
           if (i === myIdx) return { name: p.name, penalty: 0, elim: false, wasElim: false, winner: true, newScore: p.score };
+          if ((state.packed || []).includes(p.id)) {
+            return { name: p.name, penalty: DROP_PENALTY, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true };
+          }
           const pen = penalties[i].penalty;
           const ns = p.score + pen;
           return { name: p.name, penalty: pen, newScore: ns, elim: false, wasElim: ns >= ELIM_SCORE };
         });
 
-        // Update scores
+        // Update scores (don't update packed players — already updated when they packed)
         state.players = state.players.map((p, i) => {
           if (p.eliminated || i === myIdx) return p;
+          if ((state.packed || []).includes(p.id)) return p;
           const r = state.roundResults[i];
           return { ...p, score: r.newScore, eliminated: r.wasElim };
         });
@@ -385,6 +459,9 @@ export default function App() {
         state.roundResults = state.players.map((p, i) => {
           if (p.eliminated && i !== myIdx) return { name: p.name, penalty: 0, elim: true, wasElim: false };
           if (i === myIdx) return { name: p.name, penalty: MAX_PENALTY, newScore: ns, elim: false, wasElim: elim, inv: true };
+          if ((state.packed || []).includes(p.id)) {
+            return { name: p.name, penalty: DROP_PENALTY, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true };
+          }
           return { name: p.name, penalty: 0, newScore: p.score, elim: false, wasElim: false };
         });
         state.invalidShow = true;
@@ -744,6 +821,33 @@ export default function App() {
   // PLAY
   if (gs.phase === 'play') {
     const me = gs.players[myIdx];
+    const amIPacked = (gs.packed || []).includes(myId);
+
+    if (amIPacked && !me?.eliminated) {
+      return (
+        <div style={{ ...cBase, background: darkBg }}>
+          <div style={{ ...box, padding: 36, textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🏳️</div>
+            <h2 style={{ color: '#e8a85c', fontSize: 20, fontWeight: 400, letterSpacing: 2 }}>PACKED THIS ROUND</h2>
+            <p style={{ color: '#8899aa', fontSize: 13, marginTop: 8 }}>+{DROP_PENALTY} points · Watching Round {gs.round}</p>
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0' }}><WildBadge cut={cut} /></div>
+            <div style={{ marginTop: 12 }}>
+              {gs.players.filter(p => !p.eliminated).map(p => {
+                const isPacked = (gs.packed || []).includes(p.id);
+                return (
+                  <div key={p.id} style={{ color: isPacked ? '#8e6a3a' : '#b0c4d8', fontSize: 13, lineHeight: 1.8 }}>
+                    {p.id === gs.players[gs.currentPlayer]?.id ? '▶ ' : '  '}
+                    {p.name}: {p.score}
+                    {isPacked ? ' 🏳️' : ''}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     if (!me || me.eliminated) {
       return (
         <div style={{ ...cBase, background: darkBg }}>
@@ -796,14 +900,19 @@ export default function App() {
 
         {/* Mini scores */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: '4px 12px', flexWrap: 'wrap' }}>
-          {gs.players.filter(p => !p.eliminated).map(p => (
-            <span key={p.id} style={{
-              fontSize: 11, padding: '2px 8px', borderRadius: 10,
-              background: p.id === gs.players[gs.currentPlayer]?.id ? 'rgba(74,222,128,0.1)' : 'rgba(0,0,0,0.2)',
-              color: p.id === gs.players[gs.currentPlayer]?.id ? '#4ade80' : '#7a9a6a',
-              border: '1px solid ' + (p.id === gs.players[gs.currentPlayer]?.id ? 'rgba(74,222,128,0.2)' : 'transparent'),
-            }}>{p.name}: {p.score}</span>
-          ))}
+          {gs.players.filter(p => !p.eliminated).map(p => {
+            const isPacked = (gs.packed || []).includes(p.id);
+            const isCurrent = p.id === gs.players[gs.currentPlayer]?.id;
+            return (
+              <span key={p.id} style={{
+                fontSize: 11, padding: '2px 8px', borderRadius: 10,
+                background: isCurrent ? 'rgba(74,222,128,0.1)' : isPacked ? 'rgba(142,106,58,0.15)' : 'rgba(0,0,0,0.2)',
+                color: isCurrent ? '#4ade80' : isPacked ? '#8e6a3a' : '#7a9a6a',
+                border: '1px solid ' + (isCurrent ? 'rgba(74,222,128,0.2)' : 'transparent'),
+                textDecoration: isPacked ? 'line-through' : 'none',
+              }}>{p.name}: {p.score}{isPacked ? ' 🏳️' : ''}</span>
+            );
+          })}
         </div>
 
         {/* Piles */}
@@ -823,7 +932,24 @@ export default function App() {
             )}
           </div>
         </div>
-        {isMyTurn && !drawn && <p style={{ textAlign: 'center', color: '#a0c890', fontSize: 12, margin: '2px 0' }}>↑ Tap a pile to draw ↑</p>}
+        {isMyTurn && !drawn && (() => {
+          const canPack = !(gs.hasDrawnOnce || []).includes(myId);
+          return (
+            <div style={{ textAlign: 'center', padding: '4px 0' }}>
+              <p style={{ color: '#a0c890', fontSize: 12, margin: '2px 0' }}>↑ Tap a pile to draw ↑</p>
+              {canPack && (
+                <button onClick={dropPack} style={{
+                  marginTop: 6, padding: '8px 24px', borderRadius: 8,
+                  border: '1px solid rgba(231,76,60,0.4)', background: 'rgba(231,76,60,0.12)',
+                  color: '#e74c3c', fontSize: 12, cursor: 'pointer', fontFamily: font,
+                  fontWeight: 600, letterSpacing: 1,
+                }}>
+                  🏳️ PACK (+{DROP_PENALTY} pts)
+                </button>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Hand */}
         <div style={{ flex: 1, padding: '6px 10px', overflowY: 'auto', paddingBottom: 150 }}
@@ -995,7 +1121,7 @@ export default function App() {
                   background: r.wasElim ? 'rgba(192,57,43,0.1)' : r.winner ? 'rgba(46,204,113,0.08)' : 'transparent',
                 }}>
                   <span style={{ color: r.winner ? '#4ade80' : r.wasElim ? '#e74c3c' : '#b0c4d8', fontSize: 13 }}>
-                    {r.winner ? '👑 ' : ''}{r.name}{r.wasElim ? ' 💀' : ''}
+                    {r.winner ? '👑 ' : ''}{r.name}{r.wasElim ? ' 💀' : r.packed ? ' 🏳️' : ''}
                   </span>
                   <span style={{ textAlign: 'right', color: r.penalty ? '#e8a85c' : '#4ade80', fontSize: 13, fontWeight: 700 }}>
                     {r.penalty ? '+' + r.penalty : '0'}
