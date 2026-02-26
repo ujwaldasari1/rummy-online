@@ -58,8 +58,43 @@ export function isJkr(card, cut) { return card.nat || isWild(card, cut); }
 export function cardVal(c) { return c.nat ? 0 : (RANK_VALUES[c.rank] || 0); }
 
 // ─── Meld Validation ─────────────────────────────────────────────────
+
+// Helper: check if non-nat cards form a pure consecutive same-suit run
+function _pureRunCheck(cards) {
+  if (cards.length < 3) return false;
+  if (cards.some(c => c.nat)) return false;
+  const suits = new Set(cards.map(c => c.suit));
+  if (suits.size !== 1) return false;
+  const sorted = [...cards].sort((a, b) => RANK_ORDER[a.rank] - RANK_ORDER[b.rank]);
+  for (let i = 1; i < sorted.length; i++) {
+    if (RANK_ORDER[sorted[i].rank] - RANK_ORDER[sorted[i - 1].rank] !== 1) {
+      // Try Ace-high: Q-K-A
+      if (cards.some(c => c.rank === 'A')) {
+        const hs = [...cards].sort((a, b) =>
+          (a.rank === 'A' ? 14 : RANK_ORDER[a.rank]) - (b.rank === 'A' ? 14 : RANK_ORDER[b.rank])
+        );
+        let ok = true;
+        for (let j = 1; j < hs.length; j++) {
+          const av = hs[j - 1].rank === 'A' ? 14 : RANK_ORDER[hs[j - 1].rank];
+          const bv = hs[j].rank === 'A' ? 14 : RANK_ORDER[hs[j].rank];
+          if (bv - av !== 1) { ok = false; break; }
+        }
+        return ok;
+      }
+      return false;
+    }
+  }
+  return true;
+}
+
 export function isSeq(cards, cut) {
   if (cards.length < 3) return { ok: false, pure: false };
+
+  // First: try treating ALL cards as naturals (wild jokers used at face value)
+  // This makes e.g. 6♦-7♦-8♦ a pure sequence even if 7♦ is wild
+  if (_pureRunCheck(cards)) return { ok: true, pure: true };
+
+  // Fallback: joker-gap-filling logic
   const jk = cards.filter(c => isJkr(c, cut));
   const nj = cards.filter(c => !isJkr(c, cut));
   if (!nj.length) return { ok: false, pure: false };
@@ -99,6 +134,16 @@ export function isSeq(cards, cut) {
 
 export function isSet(cards, cut) {
   if (cards.length < 3 || cards.length > 4) return false;
+  // First: try treating ALL non-nat cards as naturals (wild jokers at face value)
+  const nonNat = cards.filter(c => !c.nat);
+  const natCount = cards.length - nonNat.length;
+  if (nonNat.length >= 3 - natCount) {
+    if (new Set(nonNat.map(c => c.rank)).size === 1) {
+      const ss = nonNat.map(c => c.suit);
+      if (new Set(ss).size === ss.length) return true;
+    }
+  }
+  // Fallback: joker substitution
   const nj = cards.filter(c => !isJkr(c, cut));
   if (!nj.length) return false;
   if (new Set(nj.map(c => c.rank)).size > 1) return false;
