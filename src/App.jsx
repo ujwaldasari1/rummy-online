@@ -715,6 +715,9 @@ export default function App() {
       const myIdx = state.players.findIndex(p => p.id === myId);
       if (state.currentPlayer !== myIdx) return;
       if (hand.length !== 14) { setErr('Need 14 cards!'); return; }
+      // Cannot show on first turn — must have discarded at least once before
+      const myDiscards = (state.discardLog || []).filter(e => e.player === state.players[myIdx].name && e.action === 'threw');
+      if (myDiscards.length === 0) { setErr('Cannot show on your first turn!'); return; }
 
       const discId = [...sel][0];
       const discC = hand.find(c => c.id === discId);
@@ -1617,7 +1620,8 @@ export default function App() {
                 boxShadow: '0 2px 12px rgba(192,57,43,0.35)',
               }}>🗑 DISCARD</button>
             )}
-            {isMyTurn && drawn && sel.size === 1 && hand.length === 14 && (
+            {isMyTurn && drawn && sel.size === 1 && hand.length === 14 &&
+              (gs.discardLog || []).some(e => e.player === me.name && e.action === 'threw') && (
               <button onClick={declareShow} style={{
                 ...abtn(T.gold), background: `linear-gradient(135deg, ${T.goldLight}, ${T.gold}, ${T.goldDark})`,
                 color: T.bgDeepest, fontWeight: 700,
