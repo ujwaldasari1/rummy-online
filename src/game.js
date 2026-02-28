@@ -188,7 +188,7 @@ export function calcPenalty(groups, cut) {
 // ─── Dealing ─────────────────────────────────────────────────────────
 export function dealNewRound(state, dealerIdx) {
   const active = state.players.filter(p => !p.eliminated);
-  const numDecks = active.length > 5 ? 3 : 2;
+  const numDecks = active.length > 7 ? 3 : 2;
   const deck = shuffle(createDeck(numDecks));
   let idx = 0;
   if (active.length <= 1) { state.phase = 'gameOver'; return state; }
