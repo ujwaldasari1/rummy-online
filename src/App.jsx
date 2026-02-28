@@ -406,8 +406,11 @@ export default function App() {
   const [sel, setSel] = useState(new Set());
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
+  const [specHand, setSpecHand] = useState([]);
+  const [specGroups, setSpecGroups] = useState([]);
   const unsubRef = useRef(null);
   const handUnsubRef = useRef(null);
+  const specUnsubRef = useRef(null);
   const codeRef = useRef('');
 
   // Drag state
@@ -424,6 +427,7 @@ export default function App() {
     return () => {
       if (unsubRef.current) unsubRef.current();
       if (handUnsubRef.current) handUnsubRef.current();
+      if (specUnsubRef.current) specUnsubRef.current();
     };
   }, []);
 
@@ -987,6 +991,28 @@ export default function App() {
     if (screen === 'lobby' && gs?.phase && gs.phase !== 'lobby') setScreen('game');
   }, [gs?.phase, screen]);
 
+  // Spectator: subscribe to current player's hand
+  const me = gs?.players?.[myIdx];
+  const amSpectating = gs?.phase === 'play' && me && (
+    me.spectator || me.eliminated || (gs.packed || []).includes(myId)
+  );
+  const curPlayerId = gs?.players?.[gs?.currentPlayer]?.id;
+
+  useEffect(() => {
+    if (specUnsubRef.current) { specUnsubRef.current(); specUnsubRef.current = null; }
+    if (!amSpectating || !curPlayerId || !roomCode) {
+      setSpecHand([]); setSpecGroups([]);
+      return;
+    }
+    specUnsubRef.current = onPlayerHandChange(roomCode, curPlayerId, (data) => {
+      if (data?.hand) {
+        setSpecHand(data.hand);
+        setSpecGroups(data.groups || [data.hand.map(c => c.id)]);
+      }
+    });
+    return () => { if (specUnsubRef.current) { specUnsubRef.current(); specUnsubRef.current = null; } };
+  }, [amSpectating, curPlayerId, roomCode]);
+
   // ── Styles ──
   const darkBg = `linear-gradient(145deg, ${T.bgDeepest}, ${T.bgMid}, ${T.bgDeep})`;
   const greenBg = `radial-gradient(ellipse at 50% 40%, ${T.tableMid} 0%, ${T.tableDeep} 60%, ${T.tableEdge} 100%)`;
@@ -1330,6 +1356,39 @@ export default function App() {
               );
             })}
           </div>
+
+          {/* Current player's hand (live) */}
+          {specHand.length > 0 && (
+            <div style={{ padding: '8px 12px', position: 'relative', zIndex: 1 }}>
+              <div style={{
+                color: T.goldText, fontSize: 10, letterSpacing: 1.5, fontFamily: T.display,
+                fontWeight: 600, textAlign: 'center', marginBottom: 8,
+              }}>{curName.toUpperCase()}'S HAND</div>
+              {specGroups.map((gids, gi) => {
+                const cards = gids.map(id => specHand.find(c => c.id === id)).filter(Boolean);
+                const m = cards.length >= 3 ? validateMeld(cards, cut) : { ok: false };
+                return (
+                  <div key={gi} style={{
+                    marginBottom: 8, padding: '6px 8px 8px', borderRadius: 12,
+                    background: 'rgba(0,0,0,0.12)',
+                    border: `1px dashed rgba(255,255,255,0.06)`,
+                  }}>
+                    <span style={{
+                      color: m.ok ? T.success : T.textMuted, fontSize: 9,
+                      letterSpacing: 1, fontWeight: 600, fontFamily: T.body,
+                    }}>
+                      {m.ok ? (m.type === 'pure' ? '✓ PURE SEQ' : m.type === 'impure' ? '✓ SEQUENCE' : '✓ SET') : 'GROUP ' + (gi + 1)}
+                    </span>
+                    <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginTop: 3 }}>
+                      {cards.map(card => (
+                        <Card key={card.id} card={card} cutCard={cut} small />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
         </div>
