@@ -1068,15 +1068,16 @@ export default function App() {
             <div style={{ flex: 1, height: 1, background: `linear-gradient(to right, transparent, ${T.glassBorder}, transparent)` }} />
           </div>
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
             <input value={joinCode} onChange={e => { setJoinCode(e.target.value.toUpperCase()); setErr(''); }}
               placeholder="CODE" maxLength={5} style={{
-                flex: 1, padding: '12px 16px', borderRadius: 10,
+                width: '100%', padding: '12px 16px', borderRadius: 10,
                 border: `1px solid ${T.glassBorder}`, background: T.glassLight,
                 color: T.textPrimary, fontSize: 18, fontFamily: T.display, fontWeight: 700,
                 outline: 'none', letterSpacing: 6, textAlign: 'center', textTransform: 'uppercase',
+                boxSizing: 'border-box',
               }} />
-            <button onClick={joinRoom} disabled={loading} style={outBtn}>{loading ? '...' : 'JOIN'}</button>
+            <button onClick={joinRoom} disabled={loading} style={{ ...outBtn, width: '100%', padding: '14px 36px' }}>{loading ? '...' : 'JOIN'}</button>
           </div>
         </div>
       </div>
