@@ -12,10 +12,10 @@ export const MIDDLE_DROP_PENALTY = 50;
 export const ELIM_SCORE = 201;
 
 // ─── Deck ────────────────────────────────────────────────────────────
-export function createDeck() {
+export function createDeck(numDecks = 2) {
   const cards = [];
   let id = 0;
-  for (let d = 0; d < 2; d++) {
+  for (let d = 0; d < numDecks; d++) {
     for (const suit of SUITS)
       for (const rank of RANKS)
         cards.push({ id: id++, rank, suit, nat: false });
@@ -187,9 +187,10 @@ export function calcPenalty(groups, cut) {
 
 // ─── Dealing ─────────────────────────────────────────────────────────
 export function dealNewRound(state, dealerIdx) {
-  const deck = shuffle(createDeck());
-  let idx = 0;
   const active = state.players.filter(p => !p.eliminated);
+  const numDecks = active.length > 5 ? 3 : 2;
+  const deck = shuffle(createDeck(numDecks));
+  let idx = 0;
   if (active.length <= 1) { state.phase = 'gameOver'; return state; }
   state.players = state.players.map(p => {
     if (p.eliminated) return { ...p, hand: [], groups: [] };
