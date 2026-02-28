@@ -6,7 +6,7 @@ import {
 } from './firebase.js';
 import {
   SUITS, SUIT_COLORS, SUIT_COLOR_GROUP, OPPOSITE_SUITS, RANKS,
-  RANK_VALUES, RANK_ORDER, MAX_PENALTY, ELIM_SCORE, DROP_PENALTY,
+  RANK_VALUES, RANK_ORDER, MAX_PENALTY, ELIM_SCORE, DROP_PENALTY, MIDDLE_DROP_PENALTY,
   createDeck, shuffle, sortHand, sortGroupByValue, isWild, isJkr, cardVal,
   validateMeld, validateShow, calcPenalty, dealNewRound,
   genCode, genId,
@@ -508,17 +508,21 @@ export default function App() {
   async function dropPack() {
     try {
       const state = await loadGameState(roomCode);
-      if (!state || state.drawn) return;
+      if (!state) return;
       const myIdx = state.players.findIndex(p => p.id === myId);
       if (state.currentPlayer !== myIdx) return;
-      if ((state.hasDrawnOnce || []).includes(myId)) {
-        setErr("Can't pack after drawing!"); return;
-      }
-      const newScore = state.players[myIdx].score + DROP_PENALTY;
+
+      // Initial drop (never drawn) = 25, Middle drop (already played) = 50
+      const isMiddleDrop = (state.hasDrawnOnce || []).includes(myId);
+      const penalty = isMiddleDrop ? MIDDLE_DROP_PENALTY : DROP_PENALTY;
+
+      const newScore = state.players[myIdx].score + penalty;
       state.players[myIdx].score = newScore;
       state.players[myIdx].eliminated = newScore >= ELIM_SCORE;
       if (!state.packed) state.packed = [];
       state.packed.push(myId);
+      if (!state.packedPenalties) state.packedPenalties = {};
+      state.packedPenalties[myId] = penalty;
 
       const ai = state.players.map((p, i) => (!p.eliminated ? i : -1)).filter(i => i >= 0);
       const playing = ai.filter(i => !(state.packed || []).includes(state.players[i].id));
@@ -528,7 +532,10 @@ export default function App() {
         state.roundResults = state.players.map((p, i) => {
           if (p.eliminated && !(state.packed || []).includes(p.id)) return { name: p.name, penalty: 0, elim: true, wasElim: false };
           if (winnerId !== null && i === winnerId) return { name: p.name, penalty: 0, newScore: p.score, elim: false, wasElim: false, winner: true };
-          if ((state.packed || []).includes(p.id)) return { name: p.name, penalty: DROP_PENALTY, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true };
+          if ((state.packed || []).includes(p.id)) {
+            const pp = (state.packedPenalties || {})[p.id] || DROP_PENALTY;
+            return { name: p.name, penalty: pp, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true };
+          }
           return { name: p.name, penalty: 0, newScore: p.score, elim: false, wasElim: false };
         });
         state.declarer = winnerId;
@@ -617,7 +624,7 @@ export default function App() {
         state.roundResults = state.players.map((p, i) => {
           if (p.eliminated) return { name: p.name, penalty: 0, elim: true, wasElim: false };
           if (i === myIdx) return { name: p.name, penalty: 0, elim: false, wasElim: false, winner: true, newScore: p.score };
-          if ((state.packed || []).includes(p.id)) return { name: p.name, penalty: DROP_PENALTY, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true };
+          if ((state.packed || []).includes(p.id)) { const pp = (state.packedPenalties || {})[p.id] || DROP_PENALTY; return { name: p.name, penalty: pp, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true }; }
           const pen = penalties[i].penalty;
           const ns = p.score + pen;
           return { name: p.name, penalty: pen, newScore: ns, elim: false, wasElim: ns >= ELIM_SCORE };
@@ -637,7 +644,7 @@ export default function App() {
         state.roundResults = state.players.map((p, i) => {
           if (p.eliminated && i !== myIdx) return { name: p.name, penalty: 0, elim: true, wasElim: false };
           if (i === myIdx) return { name: p.name, penalty: MAX_PENALTY, newScore: ns, elim: false, wasElim: elim, inv: true };
-          if ((state.packed || []).includes(p.id)) return { name: p.name, penalty: DROP_PENALTY, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true };
+          if ((state.packed || []).includes(p.id)) { const pp = (state.packedPenalties || {})[p.id] || DROP_PENALTY; return { name: p.name, penalty: pp, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true }; }
           return { name: p.name, penalty: 0, newScore: p.score, elim: false, wasElim: false };
         });
         state.invalidShow = true;
@@ -1202,20 +1209,19 @@ export default function App() {
         </div>
 
         {/* Draw prompt + Pack */}
-        {isMyTurn && !drawn && (() => {
-          const canPack = !(gs.hasDrawnOnce || []).includes(myId);
+        {isMyTurn && (() => {
+          const isMiddleDrop = (gs.hasDrawnOnce || []).includes(myId);
+          const packPenalty = isMiddleDrop ? MIDDLE_DROP_PENALTY : DROP_PENALTY;
           return (
             <div style={{ textAlign: 'center', padding: '6px 0', position: 'relative', zIndex: 1 }}>
-              <p style={{ color: T.success, fontSize: 12, margin: '2px 0', fontFamily: T.body, fontWeight: 500, opacity: 0.8 }}>↑ Tap a pile to draw ↑</p>
-              {canPack && (
-                <button onClick={dropPack} style={{
-                  marginTop: 8, padding: '10px 28px', borderRadius: 10,
-                  border: '1px solid rgba(231,76,60,0.35)', background: 'rgba(231,76,60,0.1)',
-                  backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
-                  color: T.danger, fontSize: 12, cursor: 'pointer', fontFamily: T.body,
-                  fontWeight: 600, letterSpacing: 0.5, transition: 'all 0.2s ease',
-                }}>🏳️ PACK (+{DROP_PENALTY} pts)</button>
-              )}
+              {!drawn && <p style={{ color: T.success, fontSize: 12, margin: '2px 0', fontFamily: T.body, fontWeight: 500, opacity: 0.8 }}>↑ Tap a pile to draw ↑</p>}
+              <button onClick={dropPack} style={{
+                marginTop: 8, padding: '10px 28px', borderRadius: 10,
+                border: '1px solid rgba(231,76,60,0.35)', background: 'rgba(231,76,60,0.1)',
+                backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+                color: T.danger, fontSize: 12, cursor: 'pointer', fontFamily: T.body,
+                fontWeight: 600, letterSpacing: 0.5, transition: 'all 0.2s ease',
+              }}>🏳️ {isMiddleDrop ? 'MIDDLE DROP' : 'PACK'} (+{packPenalty} pts)</button>
             </div>
           );
         })()}

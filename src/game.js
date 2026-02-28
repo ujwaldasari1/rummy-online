@@ -8,6 +8,7 @@ export const RANK_VALUES = { A: 10, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9:
 export const RANK_ORDER = { A: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, J: 11, Q: 12, K: 13 };
 export const MAX_PENALTY = 80;
 export const DROP_PENALTY = 25;
+export const MIDDLE_DROP_PENALTY = 50;
 export const ELIM_SCORE = 201;
 
 // ─── Deck ────────────────────────────────────────────────────────────
