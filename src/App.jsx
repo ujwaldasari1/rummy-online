@@ -986,6 +986,8 @@ export default function App() {
   const cut = gs?.cutCard;
   const drawn = gs?.drawn;
 
+  const prevTurnRef = useRef(false);
+
   useEffect(() => {
     if (gs && gs.phase !== 'lobby' && roomCode && myId) subscribeToHand(roomCode, myId);
   }, [gs?.phase, roomCode, myId]);
@@ -993,6 +995,31 @@ export default function App() {
   useEffect(() => {
     if (screen === 'lobby' && gs?.phase && gs.phase !== 'lobby') setScreen('game');
   }, [gs?.phase, screen]);
+
+  // Turn notification: sound + vibration
+  useEffect(() => {
+    const wasMy = prevTurnRef.current;
+    prevTurnRef.current = isMyTurn;
+    if (!wasMy && isMyTurn && gs?.phase === 'play') {
+      // Vibrate
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      // Play tone using Web Audio API
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(660, ctx.currentTime);
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.3);
+      } catch {}
+    }
+  }, [isMyTurn, gs?.phase]);
 
   // Spectator: subscribe to current player's hand
   const me = gs?.players?.[myIdx];
