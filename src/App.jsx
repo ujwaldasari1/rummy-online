@@ -1219,42 +1219,117 @@ export default function App() {
     const amIPacked = (gs.packed || []).includes(myId);
     const amSpectator = me?.spectator;
 
-    // Spectator view
+    // Spectator view — live game table
     if (amSpectator || amIPacked || !me || me.eliminated) {
       const label = amSpectator ? 'SPECTATING' : amIPacked ? 'PACKED' : 'ELIMINATED';
-      const accent = amSpectator ? T.info : amIPacked ? T.warning : T.danger;
-      const subtitle = amSpectator ? "You'll play next round!" : amIPacked ? `+${DROP_PENALTY} pts · Watching` : 'Watching...';
+      const accent = amSpectator ? '#5dade2' : amIPacked ? T.warning : T.danger;
+      const packedPenalty = amIPacked ? ((gs.packedPenalties || {})[myId] || DROP_PENALTY) : 0;
+      const subtitle = amSpectator ? "You'll play next round" : amIPacked ? `+${packedPenalty} pts` : 'Out of the game';
+      const topDisc = gs.discardPile?.length ? gs.discardPile[gs.discardPile.length - 1] : null;
+      const curName = gs.players[gs.currentPlayer]?.name || '?';
       return (
-        <div style={{ ...cBase, background: darkBg }}>
-          <Watermark />
-          <div style={{ ...box, padding: 36, textAlign: 'center', position: 'relative', zIndex: 1, animation: 'fadeSlideUp 0.4s ease-out' }}>
-            <div style={{
-              width: 56, height: 56, borderRadius: '50%', margin: '0 auto 16px',
-              background: `rgba(${accent === T.info ? '93,173,226' : accent === T.warning ? '232,168,92' : '231,76,60'},0.12)`,
-              border: `2px solid ${accent}33`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
-            }}>{amSpectator ? '👀' : amIPacked ? '🏳️' : '💀'}</div>
-            <h2 style={{ color: accent, fontSize: 20, fontWeight: 700, letterSpacing: 3, fontFamily: T.display }}>{label}</h2>
-            <p style={{ color: T.textMuted, fontSize: 13, marginTop: 8, fontFamily: T.body }}>{subtitle} · Round {gs.round}</p>
-            <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0' }}><WildBadge cut={cut} /></div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '8px 0' }}>
-              <DiscardLog log={gs.discardLog} cutCard={cut} />
+        <div style={{ minHeight: '100vh', background: greenBg, fontFamily: T.body, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+          {/* Vignette */}
+          <div style={{
+            position: 'fixed', inset: 0,
+            background: 'radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(0,0,0,0.4) 100%)',
+            pointerEvents: 'none', zIndex: 0,
+          }} />
+
+          {/* Top banner */}
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '10px 16px', background: 'rgba(0,0,0,0.5)',
+            borderBottom: `1px solid rgba(255,255,255,0.06)`,
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            flexWrap: 'wrap', gap: 6, position: 'relative', zIndex: 2,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{
+                padding: '3px 10px', borderRadius: 8, fontSize: 10, fontWeight: 700,
+                letterSpacing: 1.5, fontFamily: T.display,
+                background: `${accent}20`, color: accent, border: `1px solid ${accent}40`,
+              }}>{label}</span>
+              <span style={{ color: T.textMuted, fontSize: 11, fontFamily: T.body }}>{subtitle}</span>
             </div>
-            <div style={{ marginTop: 10 }}>
-              {gs.players.filter(p => !p.eliminated && !p.spectator).map(p => {
-                const isPacked = (gs.packed || []).includes(p.id);
-                const isCur = p.id === gs.players[gs.currentPlayer]?.id;
-                return (
-                  <div key={p.id} style={{
-                    color: isPacked ? '#8e6a3a' : isCur ? T.success : T.textSecondary,
-                    fontSize: 13, lineHeight: 2, fontFamily: T.body,
-                  }}>
-                    {isCur ? '▶ ' : '  '}{p.name}: {p.score}{isPacked ? ' 🏳️' : ''}
-                  </div>
-                );
-              })}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <DiscardLog log={gs.discardLog} cutCard={cut} />
+              <span style={{ color: T.textMuted, fontSize: 11, fontFamily: T.body }}>R{gs.round} · {roomCode}</span>
             </div>
           </div>
+
+          {/* Wild + Turn */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 12px', gap: 8, position: 'relative', zIndex: 1 }}>
+            <WildBadge cut={cut} />
+            <div style={{
+              padding: '8px 20px', borderRadius: 24,
+              background: T.glassLight, border: `1px solid ${T.glassBorder}`,
+              color: T.textSecondary, fontSize: 14, fontWeight: 700, fontFamily: T.body,
+              animation: 'pulse 2s infinite',
+            }}>
+              ⏳ {curName}'s turn {gs.drawn ? '· drawing...' : ''}
+            </div>
+          </div>
+
+          {/* Piles */}
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 32, padding: '12px 16px', position: 'relative', zIndex: 1 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ color: T.textMuted, fontSize: 9, letterSpacing: 1.5, marginBottom: 5, fontFamily: T.display, fontWeight: 600 }}>STOCK ({gs.stockPile?.length || 0})</div>
+              <Card card={{}} faceDown />
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ color: T.textMuted, fontSize: 9, letterSpacing: 1.5, marginBottom: 5, fontFamily: T.display, fontWeight: 600 }}>DISCARD</div>
+              {topDisc ? (
+                <Card card={topDisc} cutCard={cut} />
+              ) : (
+                <div style={{
+                  width: 72, height: 104, borderRadius: 10,
+                  border: `2px dashed ${T.goldBorder}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: T.textDim, fontSize: 11, fontFamily: T.body,
+                }}>Empty</div>
+              )}
+            </div>
+          </div>
+
+          {/* Players */}
+          <div style={{ padding: '10px 16px', position: 'relative', zIndex: 1 }}>
+            {gs.players.filter(p => !p.eliminated && !p.spectator).map((p, idx) => {
+              const isPacked = (gs.packed || []).includes(p.id);
+              const isCur = p.id === gs.players[gs.currentPlayer]?.id;
+              return (
+                <div key={p.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px',
+                  marginBottom: 4, borderRadius: 10,
+                  background: isCur ? 'rgba(56,193,114,0.1)' : isPacked ? 'rgba(142,106,58,0.08)' : 'rgba(0,0,0,0.15)',
+                  border: `1px solid ${isCur ? 'rgba(56,193,114,0.25)' : 'transparent'}`,
+                  animation: isCur ? 'breathe 2s ease-in-out infinite' : 'none',
+                  transition: 'all 0.3s ease',
+                }}>
+                  <div style={{
+                    width: 30, height: 30, borderRadius: '50%',
+                    background: isCur ? 'rgba(56,193,114,0.2)' : T.glassLight,
+                    border: `1px solid ${isCur ? 'rgba(56,193,114,0.3)' : T.glassBorder}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 700, color: isCur ? T.success : T.textMuted,
+                    fontFamily: T.display,
+                  }}>{isCur ? '▶' : p.name[0]?.toUpperCase()}</div>
+                  <div style={{ flex: 1 }}>
+                    <span style={{
+                      color: isPacked ? '#8e6a3a' : isCur ? T.success : T.textSecondary,
+                      fontSize: 13, fontWeight: isCur ? 700 : 500, fontFamily: T.body,
+                      textDecoration: isPacked ? 'line-through' : 'none',
+                    }}>{p.name}</span>
+                  </div>
+                  <span style={{
+                    color: T.goldText, fontSize: 12, fontFamily: T.display, fontWeight: 600,
+                  }}>{p.score}</span>
+                  {isPacked && <span style={{ fontSize: 11 }}>🏳️</span>}
+                </div>
+              );
+            })}
+          </div>
+
           <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
         </div>
       );
