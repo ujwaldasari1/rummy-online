@@ -205,6 +205,7 @@ export function dealNewRound(state, dealerIdx) {
   state.cutCard = null;
   state.declarer = null;
   state.roundResults = null;
+  state.roundHands = null;
   state.invalidShow = false;
   state.drawn = false;
   state.hasDrawnOnce = [];

@@ -289,6 +289,110 @@ function DiscardLog({ log, cutCard }) {
   );
 }
 
+// ─── Chat Panel ──────────────────────────────────────────────────────
+function ChatPanel({ chat, onSend, myName }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [lastRead, setLastRead] = useState(0);
+  const endRef = useRef(null);
+  const msgs = chat || [];
+  const unread = msgs.length - lastRead;
+
+  useEffect(() => {
+    if (open) { setLastRead(msgs.length); endRef.current?.scrollIntoView({ behavior: 'smooth' }); }
+  }, [open, msgs.length]);
+
+  function send() {
+    const t = text.trim();
+    if (!t) return;
+    onSend(t);
+    setText('');
+  }
+
+  return (
+    <div style={{ position: 'fixed', bottom: 80, left: 12, zIndex: 20 }}>
+      <button onClick={() => setOpen(!open)} style={{
+        width: 44, height: 44, borderRadius: '50%',
+        background: open ? `linear-gradient(135deg, ${T.gold}, ${T.goldDark})` : T.glass,
+        border: `1px solid ${open ? T.gold : T.glassBorder}`,
+        color: open ? T.bgDeepest : T.goldText,
+        fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: T.shadowMd, position: 'relative',
+        backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+        transition: 'all 0.2s ease',
+      }}>
+        💬
+        {!open && unread > 0 && (
+          <span style={{
+            position: 'absolute', top: -4, right: -4,
+            width: 20, height: 20, borderRadius: '50%',
+            background: T.danger, color: '#fff', fontSize: 10, fontWeight: 700,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: T.body,
+          }}>{unread > 9 ? '9+' : unread}</span>
+        )}
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', bottom: 52, left: 0,
+          width: 280, maxHeight: 340,
+          background: T.glassHeavy, border: `1px solid ${T.glassBorder}`,
+          borderRadius: 16, overflow: 'hidden',
+          boxShadow: T.shadowLg,
+          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          animation: 'fadeSlideUp 0.2s ease-out',
+          display: 'flex', flexDirection: 'column',
+        }}>
+          <div style={{
+            padding: '10px 14px', borderBottom: `1px solid ${T.glassBorder}`,
+            color: T.goldText, fontSize: 11, fontFamily: T.display, fontWeight: 600,
+            letterSpacing: 1.5, textAlign: 'center',
+          }}>CHAT</div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px', maxHeight: 240 }}>
+            {msgs.length === 0 && <div style={{ color: T.textDim, fontSize: 11, textAlign: 'center', padding: 20 }}>No messages yet</div>}
+            {msgs.map((m, i) => {
+              const isMe = m.senderName === myName;
+              return (
+                <div key={i} style={{ marginBottom: 6, textAlign: isMe ? 'right' : 'left' }}>
+                  {!isMe && <div style={{ fontSize: 9, color: T.goldText, fontWeight: 600, marginBottom: 2, fontFamily: T.body }}>{m.senderName}</div>}
+                  <div style={{
+                    display: 'inline-block', maxWidth: '85%', padding: '6px 10px',
+                    borderRadius: isMe ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
+                    background: isMe ? T.goldMuted : T.glassLight,
+                    border: `1px solid ${isMe ? T.goldBorder : T.glassBorder}`,
+                    color: T.textPrimary, fontSize: 12, fontFamily: T.body,
+                    wordBreak: 'break-word',
+                  }}>{m.text}</div>
+                </div>
+              );
+            })}
+            <div ref={endRef} />
+          </div>
+          <div style={{
+            display: 'flex', gap: 6, padding: '8px 10px',
+            borderTop: `1px solid ${T.glassBorder}`,
+          }}>
+            <input value={text} onChange={e => setText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') send(); }}
+              placeholder="Type a message..."
+              style={{
+                flex: 1, padding: '8px 12px', borderRadius: 8,
+                border: `1px solid ${T.glassBorder}`, background: T.glassLight,
+                color: T.textPrimary, fontSize: 12, fontFamily: T.body, outline: 'none',
+              }} />
+            <button onClick={send} style={{
+              padding: '8px 14px', borderRadius: 8, border: 'none',
+              background: `linear-gradient(135deg, ${T.gold}, ${T.goldDark})`,
+              color: T.bgDeepest, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              fontFamily: T.body,
+            }}>Send</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main App ────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState('home');
@@ -529,6 +633,15 @@ export default function App() {
 
       if (playing.length <= 1) {
         const winnerId = playing.length === 1 ? playing[0] : null;
+        // Collect all player hands for round-end reveal
+        const roundHands = {};
+        const handPromises = state.players.map(async (p, i) => {
+          if (p.eliminated) return;
+          const ph = await loadPlayerHand(roomCode, p.id);
+          if (ph?.hand) roundHands[p.id] = { hand: ph.hand, groups: ph.groups || [ph.hand.map(c => c.id)] };
+        });
+        await Promise.all(handPromises);
+        state.roundHands = roundHands;
         state.roundResults = state.players.map((p, i) => {
           if (p.eliminated && !(state.packed || []).includes(p.id)) return { name: p.name, penalty: 0, elim: true, wasElim: false };
           if (winnerId !== null && i === winnerId) return { name: p.name, penalty: 0, newScore: p.score, elim: false, wasElim: false, winner: true };
@@ -609,12 +722,21 @@ export default function App() {
       if (!state.discardPile) state.discardPile = [];
       state.discardPile.push(discC);
 
+      // Collect all player hands for round-end reveal
+      const roundHands = {};
+      roundHands[myId] = { hand: remHand, groups: remGroups };
+
       if (result.valid) {
         const penaltyPromises = state.players.map(async (p, i) => {
           if (p.eliminated || i === myIdx) return { penalty: 0 };
-          if ((state.packed || []).includes(p.id)) return { penalty: 0, packed: true };
+          if ((state.packed || []).includes(p.id)) {
+            const ph = await loadPlayerHand(roomCode, p.id);
+            if (ph?.hand) roundHands[p.id] = { hand: ph.hand, groups: ph.groups || [ph.hand.map(c => c.id)] };
+            return { penalty: 0, packed: true };
+          }
           const ph = await loadPlayerHand(roomCode, p.id);
           if (!ph || !ph.hand) return { penalty: MAX_PENALTY };
+          roundHands[p.id] = { hand: ph.hand, groups: ph.groups || [ph.hand.map(c => c.id)] };
           const pg = (ph.groups || [ph.hand.map(c => c.id)]).map(g =>
             g.map(id => ph.hand.find(c => c.id === id)).filter(Boolean)
           );
@@ -637,6 +759,14 @@ export default function App() {
         });
         state.invalidShow = false;
       } else {
+        // Invalid show — still collect other hands for reveal
+        const handPromises = state.players.map(async (p, i) => {
+          if (p.eliminated || i === myIdx) return;
+          const ph = await loadPlayerHand(roomCode, p.id);
+          if (ph?.hand) roundHands[p.id] = { hand: ph.hand, groups: ph.groups || [ph.hand.map(c => c.id)] };
+        });
+        await Promise.all(handPromises);
+
         const ns = state.players[myIdx].score + MAX_PENALTY;
         const elim = ns >= ELIM_SCORE;
         state.players[myIdx].score = ns;
@@ -649,6 +779,7 @@ export default function App() {
         });
         state.invalidShow = true;
       }
+      state.roundHands = roundHands;
       state.declarer = myIdx;
       state.phase = 'roundEnd';
       state.drawn = false;
@@ -744,6 +875,20 @@ export default function App() {
   }
 
   function getGCards(gids) { return gids.map(id => hand.find(c => c.id === id)).filter(Boolean); }
+
+  // ── Chat ──
+  async function sendChat(text) {
+    try {
+      const state = await loadGameState(roomCode);
+      if (!state) return;
+      if (!state.chat) state.chat = [];
+      state.chat.push({ senderName: myName, text, ts: Date.now() });
+      // Keep last 100 messages
+      if (state.chat.length > 100) state.chat = state.chat.slice(-100);
+      state._ts = Date.now();
+      await saveGameState(roomCode, state);
+    } catch (e) { /* silently fail */ }
+  }
 
   // ── Drag and Drop ──
   function findDropTarget(x, y) {
@@ -1110,6 +1255,7 @@ export default function App() {
               })}
             </div>
           </div>
+          <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
         </div>
       );
     }
@@ -1350,6 +1496,7 @@ export default function App() {
               : 'Hold & drag to rearrange · Tap to select'}
           </p>
         </div>
+        <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
       </div>
     );
   }
@@ -1415,6 +1562,71 @@ export default function App() {
             </div>
           )}
 
+          {/* Hand Reveal Section */}
+          {gs.roundHands && Object.keys(gs.roundHands).length > 0 && (() => {
+            return (
+              <div style={{ marginTop: 18 }}>
+                <div style={{
+                  color: T.goldText, fontSize: 11, letterSpacing: 1.5, fontFamily: T.display,
+                  fontWeight: 600, textAlign: 'center', marginBottom: 10,
+                }}>PLAYER HANDS</div>
+                {gs.players.map((p, pi) => {
+                  const rh = gs.roundHands[p.id];
+                  if (!rh || !rh.hand || !rh.hand.length) return null;
+                  const isDeclarer = pi === gs.declarer;
+                  const isWinner = gs.roundResults?.[pi]?.winner;
+                  const playerGroups = (rh.groups || [rh.hand.map(c => c.id)]).map(gids =>
+                    gids.map(id => rh.hand.find(c => c.id === id)).filter(Boolean)
+                  );
+                  return (
+                    <div key={p.id} style={{
+                      marginBottom: 12, padding: '10px 12px', borderRadius: 12,
+                      background: isWinner ? 'rgba(56,193,114,0.06)' : isDeclarer ? 'rgba(231,76,60,0.06)' : T.glassLight,
+                      border: `1px solid ${isWinner ? 'rgba(56,193,114,0.2)' : isDeclarer ? 'rgba(231,76,60,0.2)' : T.glassBorder}`,
+                      animation: `fadeSlideUp ${0.2 + pi * 0.08}s ease-out`,
+                    }}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
+                      }}>
+                        <span style={{
+                          color: isWinner ? T.success : isDeclarer ? T.danger : T.textSecondary,
+                          fontSize: 12, fontWeight: 700, fontFamily: T.body,
+                        }}>
+                          {isWinner ? '👑 ' : isDeclarer && gs.invalidShow ? '❌ ' : ''}{p.name}
+                        </span>
+                        {isDeclarer && <span style={{
+                          fontSize: 9, padding: '2px 8px', borderRadius: 6,
+                          background: gs.invalidShow ? 'rgba(231,76,60,0.15)' : 'rgba(56,193,114,0.15)',
+                          color: gs.invalidShow ? T.danger : T.success,
+                          fontFamily: T.body, fontWeight: 600, letterSpacing: 0.5,
+                        }}>{gs.invalidShow ? 'INVALID SHOW' : 'DECLARED'}</span>}
+                      </div>
+                      {playerGroups.map((groupCards, gi) => {
+                        const m = groupCards.length >= 3 ? validateMeld(groupCards, cut) : { ok: false };
+                        return (
+                          <div key={gi} style={{ marginBottom: 6 }}>
+                            <span style={{
+                              color: m.ok ? T.success : T.textDim, fontSize: 9,
+                              letterSpacing: 1, fontWeight: 600, fontFamily: T.body,
+                            }}>
+                              {m.ok ? (m.type === 'pure' ? '✓ PURE SEQ' : m.type === 'impure' ? '✓ SEQUENCE' : '✓ SET') : 'UNMELDED'}
+                            </span>
+                            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginTop: 3 }}>
+                              {groupCards.map(card => (
+                                <Card key={card.id} card={card} cutCard={cut} small
+                                  style={{ transform: 'scale(0.75)', transformOrigin: 'top left', margin: '0 -8px -18px 0' }} />
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
           {isHost ? (
             <button onClick={nextRound} style={{ ...goldBtn, marginTop: 22 }}>
               {active.length <= 2 ? 'SEE RESULTS' : 'NEXT ROUND'}
@@ -1423,6 +1635,7 @@ export default function App() {
             <div style={{ marginTop: 22, color: T.textDim, fontSize: 13, textAlign: 'center', fontFamily: T.body, animation: 'pulse 2s infinite' }}>Waiting for host...</div>
           )}
         </div>
+        <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
       </div>
     );
   }
@@ -1466,6 +1679,7 @@ export default function App() {
           <button onClick={() => { setScreen('home'); setGs(null); setHand([]); setGroups([]); }}
             style={{ ...goldBtn, marginTop: 24 }}>NEW GAME</button>
         </div>
+        <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
       </div>
     );
   }
