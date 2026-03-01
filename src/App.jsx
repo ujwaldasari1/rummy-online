@@ -406,23 +406,23 @@ function ChatPanel({ chat, onSend, myName }) {
   }
 
   return (
-    <div style={{ position: 'fixed', bottom: 80, left: 12, zIndex: 20 }}>
+    <>
       <button onClick={() => setOpen(!open)} style={{
-        width: 44, height: 44, borderRadius: '50%',
-        background: open ? `linear-gradient(135deg, ${T.gold}, ${T.goldDark})` : T.glass,
-        border: `1px solid ${open ? T.gold : T.glassBorder}`,
-        color: open ? T.bgDeepest : T.goldText,
-        fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: T.shadowMd, position: 'relative',
-        backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
-        transition: 'all 0.2s ease',
+        padding: '4px 10px', borderRadius: T.radius.sm,
+        background: open ? T.goldMuted : T.glassLight,
+        border: `1px solid ${open ? T.goldBorder : T.glassBorder}`,
+        color: T.goldText, fontSize: 10, cursor: 'pointer',
+        fontFamily: T.display, fontWeight: 700, letterSpacing: 1,
+        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+        transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: 4,
+        position: 'relative',
       }}>
-        💬
+        💬 CHAT
         {!open && unread > 0 && (
           <span style={{
-            position: 'absolute', top: -4, right: -4,
-            width: 20, height: 20, borderRadius: '50%',
-            background: T.danger, color: '#fff', fontSize: 10, fontWeight: 700,
+            position: 'absolute', top: -6, right: -6,
+            width: 16, height: 16, borderRadius: '50%',
+            background: T.danger, color: '#fff', fontSize: 8, fontWeight: 700,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontFamily: T.body,
           }}>{unread > 9 ? '9+' : unread}</span>
@@ -430,7 +430,7 @@ function ChatPanel({ chat, onSend, myName }) {
       </button>
       {open && (
         <div style={{
-          position: 'absolute', bottom: 52, left: 0,
+          position: 'fixed', top: 50, left: 8, zIndex: 30,
           width: 280, maxHeight: 340,
           background: T.glassHeavy, border: `1px solid ${T.glassBorder}`,
           borderRadius: 16, overflow: 'hidden',
@@ -485,7 +485,7 @@ function ChatPanel({ chat, onSend, myName }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -522,20 +522,19 @@ function RulesPanel() {
   ];
 
   return (
-    <div style={{ position: 'fixed', bottom: 80, right: 12, zIndex: 20 }}>
+    <>
       <button onClick={() => setOpen(!open)} style={{
-        width: 44, height: 44, borderRadius: '50%',
-        background: open ? `linear-gradient(135deg, ${T.gold}, ${T.goldDark})` : T.glass,
-        border: `1px solid ${open ? T.gold : T.glassBorder}`,
-        color: open ? T.bgDeepest : T.goldText,
-        fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: T.shadowMd,
-        backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
-        transition: 'all 0.2s ease', fontWeight: 700, fontFamily: T.display,
-      }}>?</button>
+        padding: '4px 10px', borderRadius: T.radius.sm,
+        background: open ? T.goldMuted : T.glassLight,
+        border: `1px solid ${open ? T.goldBorder : T.glassBorder}`,
+        color: T.goldText, fontSize: 10, cursor: 'pointer',
+        fontFamily: T.display, fontWeight: 700, letterSpacing: 1,
+        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+        transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: 4,
+      }}>? RULES</button>
       {open && (
         <div style={{
-          position: 'absolute', bottom: 52, right: 0,
+          position: 'fixed', top: 50, right: 8, zIndex: 30,
           width: 320, maxHeight: 440,
           background: T.glassHeavy, border: `1px solid ${T.glassBorder}`,
           borderRadius: 16, overflow: 'hidden',
@@ -569,7 +568,7 @@ function RulesPanel() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -1754,7 +1753,11 @@ export default function App() {
 
           {/* Wild + Turn */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 12px', gap: 8, position: 'relative', zIndex: 1 }}>
-            <WildBadge cut={cut} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', justifyContent: 'center' }}>
+              <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
+              <WildBadge cut={cut} />
+              <RulesPanel />
+            </div>
             <div style={{
               padding: '8px 20px', borderRadius: 24,
               background: T.glassLight, border: `1px solid ${T.glassBorder}`,
@@ -1856,9 +1859,6 @@ export default function App() {
               })}
             </div>
           )}
-
-          <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
-        <RulesPanel />
         </div>
       );
     }
@@ -1913,7 +1913,11 @@ export default function App() {
 
         {/* Wild + Turn */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 12px 6px', gap: 8, position: 'relative', zIndex: 1 }}>
-          <WildBadge cut={cut} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', justifyContent: 'center' }}>
+            <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
+            <WildBadge cut={cut} />
+            <RulesPanel />
+          </div>
           <div style={{
             padding: '8px 24px', borderRadius: 24,
             background: isMyTurn ? 'rgba(56,193,114,0.12)' : 'rgba(0,0,0,0.3)',
@@ -2138,8 +2142,6 @@ export default function App() {
               : 'Hold & drag to rearrange · Tap to select'}
           </p>
         </div>
-        <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
-        <RulesPanel />
       </div>
     );
   }
@@ -2152,8 +2154,12 @@ export default function App() {
       <div style={{ ...cBase, background: darkBg }}>
         <Watermark />
         <div style={{ ...box, padding: '36px 28px', position: 'relative', zIndex: 1, animation: 'fadeSlideUp 0.5s ease-out' }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-            <ResultsPanel history={gs?.roundHistory} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
+            <div style={{ display: 'flex', gap: 6 }}>
+              <ResultsPanel history={gs?.roundHistory} />
+              <RulesPanel />
+            </div>
           </div>
           <div style={{ textAlign: 'center', marginBottom: 6 }}>
             <span style={{ fontSize: gs.invalidShow ? 36 : 42 }}>{gs.invalidShow ? '❌' : '🏆'}</span>
@@ -2291,8 +2297,6 @@ export default function App() {
             <div style={{ marginTop: 24, color: T.textDim, fontSize: 13, textAlign: 'center', fontFamily: T.accent, fontStyle: 'italic', animation: 'pulse 2s infinite' }}>Waiting for host...</div>
           )}
         </div>
-        <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
-        <RulesPanel />
       </div>
     );
   }
@@ -2307,8 +2311,12 @@ export default function App() {
       <div style={{ ...cBase, background: darkBg }}>
         <Watermark />
         <div style={{ ...box, padding: '44px 28px', textAlign: 'center', position: 'relative', zIndex: 1, animation: 'fadeSlideUp 0.5s ease-out', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4, position: 'relative', zIndex: 2 }}>
-            <ResultsPanel history={gs?.roundHistory} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, position: 'relative', zIndex: 2 }}>
+            <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
+            <div style={{ display: 'flex', gap: 6 }}>
+              <ResultsPanel history={gs?.roundHistory} />
+              <RulesPanel />
+            </div>
           </div>
           {/* Subtle gold ambient behind crown */}
           <div style={{
@@ -2362,8 +2370,6 @@ export default function App() {
             }} />
           </button>
         </div>
-        <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
-        <RulesPanel />
       </div>
     );
   }
