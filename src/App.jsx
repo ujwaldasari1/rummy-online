@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import confetti from 'canvas-confetti';
 import {
   saveGameState, savePlayerHand, loadPlayerHand, saveFullDeal,
   loadGameState, onGameStateChange, onPlayerHandChange,
@@ -1588,6 +1589,20 @@ export default function App() {
   useEffect(() => {
     if (screen === 'lobby' && gs?.phase && gs.phase !== 'lobby') setScreen('game');
   }, [gs?.phase, screen]);
+
+  // Confetti on valid show
+  const confettiFiredRef = useRef(null);
+  useEffect(() => {
+    if (gs?.phase === 'roundEnd' && !gs.invalidShow && gs._round !== confettiFiredRef.current) {
+      confettiFiredRef.current = gs._round;
+      const end = Date.now() + 2500;
+      (function burst() {
+        confetti({ particleCount: 80, angle: 60, spread: 55, origin: { x: 0, y: 0.7 }, colors: ['#d4af37', '#fff', '#38c172', '#e74c3c'] });
+        confetti({ particleCount: 80, angle: 120, spread: 55, origin: { x: 1, y: 0.7 }, colors: ['#d4af37', '#fff', '#38c172', '#e74c3c'] });
+        if (Date.now() < end) requestAnimationFrame(burst);
+      })();
+    }
+  }, [gs?.phase, gs?._round, gs?.invalidShow]);
 
   // Turn notification: sound + vibration
   useEffect(() => {
