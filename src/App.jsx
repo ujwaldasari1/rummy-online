@@ -897,8 +897,13 @@ export default function App() {
     try {
       const state = await loadGameState(roomCode);
       if (!state) return;
-      // Promote spectators to active players for new round
-      state.players = state.players.map(p => ({ ...p, spectator: false }));
+      // Late joiners start with the highest score among existing players
+      const highestScore = Math.max(0, ...state.players.filter(p => !p.spectator && !p.eliminated).map(p => p.score));
+      state.players = state.players.map(p => ({
+        ...p,
+        score: p.spectator ? highestScore : p.score,
+        spectator: false,
+      }));
       const active = state.players.filter(p => !p.eliminated);
       if (active.length <= 1) {
         state.phase = 'gameOver';
