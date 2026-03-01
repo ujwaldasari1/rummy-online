@@ -582,20 +582,19 @@ function ResultsPanel({ history }) {
   if (!rounds.length) return null;
 
   return (
-    <div style={{ position: 'fixed', bottom: 80, right: 62, zIndex: 20 }}>
+    <>
       <button onClick={() => setOpen(!open)} style={{
-        width: 44, height: 44, borderRadius: '50%',
-        background: open ? `linear-gradient(135deg, ${T.gold}, ${T.goldDark})` : T.glass,
-        border: `1px solid ${open ? T.gold : T.glassBorder}`,
-        color: open ? T.bgDeepest : T.goldText,
-        fontSize: 17, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: T.shadowMd,
-        backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
-        transition: 'all 0.2s ease', fontWeight: 700,
-      }}>📊</button>
+        padding: '4px 10px', borderRadius: T.radius.sm,
+        background: open ? T.goldMuted : T.glassLight,
+        border: `1px solid ${open ? T.goldBorder : T.glassBorder}`,
+        color: T.goldText, fontSize: 10, cursor: 'pointer',
+        fontFamily: T.display, fontWeight: 700, letterSpacing: 1,
+        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+        transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: 4,
+      }}>📊 STATS</button>
       {open && (
         <div style={{
-          position: 'absolute', bottom: 52, right: 0,
+          position: 'fixed', top: 50, right: 8, zIndex: 30,
           width: 340, maxHeight: 480,
           background: T.glassHeavy, border: `1px solid ${T.glassBorder}`,
           borderRadius: 16, overflow: 'hidden',
@@ -737,7 +736,7 @@ function ResultsPanel({ history }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -1746,7 +1745,8 @@ export default function App() {
               }}>{label}</span>
               <span style={{ color: T.textDim, fontSize: 10, fontFamily: T.accent, fontStyle: 'italic' }}>{subtitle}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <ResultsPanel history={gs?.roundHistory} />
               <DiscardLog log={gs.discardLog} cutCard={cut} />
               <span style={{ color: T.textDim, fontSize: 10, fontFamily: T.body, letterSpacing: 0.5 }}>R{gs.round} · {roomCode}</span>
             </div>
@@ -1859,7 +1859,6 @@ export default function App() {
 
           <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
         <RulesPanel />
-        <ResultsPanel history={gs?.roundHistory} />
         </div>
       );
     }
@@ -1905,7 +1904,8 @@ export default function App() {
               <span style={{ color: T.goldText, fontSize: 11, marginLeft: 8, fontFamily: T.display, fontWeight: 700, letterSpacing: 1 }}>{me.score} pts</span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ResultsPanel history={gs?.roundHistory} />
             <DiscardLog log={gs.discardLog} cutCard={cut} />
             <span style={{ color: T.textDim, fontSize: 10, fontFamily: T.body, letterSpacing: 0.5 }}>R{gs.round} · {hand.length} cards · {roomCode}</span>
           </div>
@@ -2140,7 +2140,6 @@ export default function App() {
         </div>
         <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
         <RulesPanel />
-        <ResultsPanel history={gs?.roundHistory} />
       </div>
     );
   }
@@ -2153,6 +2152,9 @@ export default function App() {
       <div style={{ ...cBase, background: darkBg }}>
         <Watermark />
         <div style={{ ...box, padding: '36px 28px', position: 'relative', zIndex: 1, animation: 'fadeSlideUp 0.5s ease-out' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+            <ResultsPanel history={gs?.roundHistory} />
+          </div>
           <div style={{ textAlign: 'center', marginBottom: 6 }}>
             <span style={{ fontSize: gs.invalidShow ? 36 : 42 }}>{gs.invalidShow ? '❌' : '🏆'}</span>
           </div>
@@ -2291,7 +2293,6 @@ export default function App() {
         </div>
         <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
         <RulesPanel />
-        <ResultsPanel history={gs?.roundHistory} />
       </div>
     );
   }
@@ -2306,6 +2307,9 @@ export default function App() {
       <div style={{ ...cBase, background: darkBg }}>
         <Watermark />
         <div style={{ ...box, padding: '44px 28px', textAlign: 'center', position: 'relative', zIndex: 1, animation: 'fadeSlideUp 0.5s ease-out', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4, position: 'relative', zIndex: 2 }}>
+            <ResultsPanel history={gs?.roundHistory} />
+          </div>
           {/* Subtle gold ambient behind crown */}
           <div style={{
             position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)',
@@ -2360,7 +2364,6 @@ export default function App() {
         </div>
         <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
         <RulesPanel />
-        <ResultsPanel history={gs?.roundHistory} />
       </div>
     );
   }
