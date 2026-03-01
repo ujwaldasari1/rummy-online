@@ -489,6 +489,90 @@ function ChatPanel({ chat, onSend, myName }) {
   );
 }
 
+// ─── Rules Panel ────────────────────────────────────────────────────
+function RulesPanel() {
+  const [open, setOpen] = useState(false);
+  const sections = [
+    { title: 'OBJECTIVE', text: 'Arrange your 13 cards into valid groups (sequences and sets) and declare "Show" to win the round. The player with the lowest score at the end wins.' },
+    { title: 'CARD GROUPS', items: [
+      ['Pure Sequence', '3+ consecutive cards of the same suit, NO jokers. You need at least one to show. e.g. 4♥ 5♥ 6♥'],
+      ['Impure Sequence', '3+ consecutive cards of the same suit, using joker(s) as substitutes. e.g. 4♠ 🃏 6♠'],
+      ['Set', '3 or 4 cards of the same rank but different suits. May include jokers. e.g. 7♥ 7♠ 7♦'],
+    ]},
+    { title: 'JOKERS & WILDS', text: 'After dealing, a card is cut from the deck. Cards of the same rank but opposite color suits become wild jokers (marked with ★). Printed jokers (🃏) are always wild. Wilds substitute any card in sequences or sets.' },
+    { title: 'GAMEPLAY', items: [
+      ['Draw', 'On your turn, pick one card from the Stock pile (face-down) or the Discard pile (face-up).'],
+      ['Arrange', 'Organize your cards into groups. Tap to select, use Group/Ungroup buttons, or hold & drag to rearrange.'],
+      ['Discard', 'Select 1 card and tap Discard to end your turn.'],
+      ['Show', 'When your hand is fully arranged into valid groups, select a card to discard and tap Show. You must have at least 1 pure sequence.'],
+    ]},
+    { title: 'SCORING', items: [
+      ['Winner', '0 points for the round.'],
+      ['Losers', 'Points = sum of ungrouped card values. Face cards = 10, Ace = 10, Number cards = face value.'],
+      ['Pack (Drop)', '25 points penalty if you haven\'t drawn yet, 50 points if you have (middle drop).'],
+      ['Invalid Show', '80 points penalty.'],
+      ['Elimination', 'A player is eliminated when their score reaches 201.'],
+    ]},
+    { title: 'SPECIAL RULES', items: [
+      ['First Turn', 'You cannot declare Show on your very first turn.'],
+      ['3 Decks', 'When more than 7 players are active, 3 decks are used instead of 2.'],
+      ['All-Sets Show', 'In 3-deck games, you can show with all sets (no sequences) if you have at least one pure quadruplet (4 cards, same rank, all 4 different suits, no jokers).'],
+      ['Late Join', 'Players joining mid-game spectate until the next round and start with the highest existing score.'],
+    ]},
+  ];
+
+  return (
+    <div style={{ position: 'fixed', bottom: 80, right: 12, zIndex: 20 }}>
+      <button onClick={() => setOpen(!open)} style={{
+        width: 44, height: 44, borderRadius: '50%',
+        background: open ? `linear-gradient(135deg, ${T.gold}, ${T.goldDark})` : T.glass,
+        border: `1px solid ${open ? T.gold : T.glassBorder}`,
+        color: open ? T.bgDeepest : T.goldText,
+        fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: T.shadowMd,
+        backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+        transition: 'all 0.2s ease', fontWeight: 700, fontFamily: T.display,
+      }}>?</button>
+      {open && (
+        <div style={{
+          position: 'absolute', bottom: 52, right: 0,
+          width: 320, maxHeight: 440,
+          background: T.glassHeavy, border: `1px solid ${T.glassBorder}`,
+          borderRadius: 16, overflow: 'hidden',
+          boxShadow: T.shadowLg,
+          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          animation: 'fadeSlideUp 0.2s ease-out',
+          display: 'flex', flexDirection: 'column',
+        }}>
+          <div style={{
+            padding: '12px 14px', borderBottom: `1px solid ${T.glassBorder}`,
+            color: T.goldText, fontSize: 11, fontFamily: T.display, fontWeight: 700,
+            letterSpacing: 2, textAlign: 'center',
+          }}>HOW TO PLAY</div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', maxHeight: 380 }}>
+            {sections.map((s, si) => (
+              <div key={si} style={{ marginBottom: 16 }}>
+                <div style={{
+                  color: T.goldText, fontSize: 10, letterSpacing: 2, fontFamily: T.display,
+                  fontWeight: 700, marginBottom: 6,
+                  paddingBottom: 4, borderBottom: `1px solid ${T.glassBorder}`,
+                }}>{s.title}</div>
+                {s.text && <p style={{ color: T.textSecondary, fontSize: 12, lineHeight: 1.6, fontFamily: T.body }}>{s.text}</p>}
+                {s.items && s.items.map(([label, desc], ii) => (
+                  <div key={ii} style={{ marginBottom: 6 }}>
+                    <span style={{ color: T.goldText, fontSize: 11, fontWeight: 700, fontFamily: T.body }}>{label}: </span>
+                    <span style={{ color: T.textSecondary, fontSize: 11, lineHeight: 1.5, fontFamily: T.body }}>{desc}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main App ────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState('home');
@@ -1287,6 +1371,7 @@ export default function App() {
             <button onClick={joinRoom} disabled={loading} style={{ ...outBtn, width: '100%', padding: '14px 36px' }}>{loading ? '...' : 'JOIN ROOM'}</button>
           </div>
         </div>
+        <RulesPanel />
       </div>
     );
   }
@@ -1366,6 +1451,7 @@ export default function App() {
             </div>
           )}
         </div>
+        <RulesPanel />
       </div>
     );
   }
@@ -1589,6 +1675,7 @@ export default function App() {
           )}
 
           <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
+        <RulesPanel />
         </div>
       );
     }
@@ -1868,6 +1955,7 @@ export default function App() {
           </p>
         </div>
         <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
+        <RulesPanel />
       </div>
     );
   }
@@ -2017,6 +2105,7 @@ export default function App() {
           )}
         </div>
         <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
+        <RulesPanel />
       </div>
     );
   }
@@ -2084,6 +2173,7 @@ export default function App() {
           </button>
         </div>
         <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
+        <RulesPanel />
       </div>
     );
   }
