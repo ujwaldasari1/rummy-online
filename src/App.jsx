@@ -8,7 +8,7 @@ import {
   SUITS, SUIT_COLORS, SUIT_COLOR_GROUP, OPPOSITE_SUITS, RANKS,
   RANK_VALUES, RANK_ORDER, MAX_PENALTY, ELIM_SCORE, DROP_PENALTY, MIDDLE_DROP_PENALTY,
   createDeck, shuffle, sortHand, sortGroupByValue, isWild, isJkr, cardVal,
-  validateMeld, validateShow, calcPenalty, dealNewRound,
+  validateMeld, validateShow, validateSetsShow, calcPenalty, dealNewRound,
   genCode, genId,
 } from './game.js';
 
@@ -724,7 +724,13 @@ export default function App() {
       const remHand = hand.filter(c => c.id !== discId);
       const remGroups = groups.map(g => g.filter(id => id !== discId)).filter(g => g.length);
       const meldGroups = remGroups.map(g => g.map(id => remHand.find(c => c.id === id)).filter(Boolean));
+      const activeCount = state.players.filter(p => !p.eliminated).length;
       const result = validateShow(meldGroups, state.cutCard);
+      // In 3+ deck games (>7 players), also allow all-sets show with a pure quadruplet
+      if (!result.valid && activeCount > 7) {
+        const setsResult = validateSetsShow(meldGroups, state.cutCard);
+        if (setsResult.valid) { result.valid = true; result.vs = setsResult.vs; }
+      }
 
       if (!state.discardPile) state.discardPile = [];
       state.discardPile.push(discC);

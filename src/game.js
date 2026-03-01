@@ -166,6 +166,23 @@ export function validateShow(groups, cut) {
   return { valid: pure && seq2 && vs.every(v => v.ok), vs, pure, seq2 };
 }
 
+// Special all-sets show (3+ decks only): all groups are sets,
+// at least one pure quadruplet (4 cards, same rank, all different suits, no jokers/wilds)
+export function validateSetsShow(groups, cut) {
+  const vs = groups.map(g => ({ cards: g, ...validateMeld(g, cut) }));
+  const allSets = vs.every(v => v.ok && v.type === 'set');
+  if (!allSets) return { valid: false, vs };
+  // Check for at least one pure quadruplet: 4 cards, no jokers/wilds, same rank, all different suits
+  const hasPureQuad = groups.some(g => {
+    if (g.length !== 4) return false;
+    if (g.some(c => c.nat || isWild(c, cut))) return false;
+    if (new Set(g.map(c => c.rank)).size !== 1) return false;
+    const suits = g.map(c => c.suit);
+    return new Set(suits).size === 4;
+  });
+  return { valid: allSets && hasPureQuad, vs };
+}
+
 export function calcPenalty(groups, cut) {
   const vs = groups.map(g => ({ cards: g, ...validateMeld(g, cut) }));
   const hasPure = vs.some(v => v.type === 'pure');
