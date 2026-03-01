@@ -87,7 +87,7 @@ const FACE_LABELS = { J: 'JACK', Q: 'QUEEN', K: 'KING' };
 
 // ─── Card Component ─────────────────────────────────────────────────
 function Card({ card, selected, onClick, small, faceDown, cutCard, glow, style: sx }) {
-  const w = small ? 58 : 72, h = small ? 84 : 104;
+  const w = small ? 64 : 80, h = small ? 92 : 116;
 
   // ── Card Back (Bicycle-style red) ──
   if (faceDown) return (
@@ -116,17 +116,17 @@ function Card({ card, selected, onClick, small, faceDown, cutCard, glow, style: 
       }} />
       {/* Center medallion */}
       <div style={{
-        width: small ? 22 : 30, height: small ? 22 : 30,
+        width: small ? 26 : 34, height: small ? 26 : 34,
         border: '2px solid rgba(255,255,255,0.7)', borderRadius: '50%',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'rgba(255,255,255,0.1)', position: 'relative', zIndex: 1,
       }}>
         <div style={{
-          width: small ? 14 : 18, height: small ? 14 : 18,
+          width: small ? 16 : 22, height: small ? 16 : 22,
           border: '1px solid rgba(255,255,255,0.5)', borderRadius: '50%',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <span style={{ fontSize: small ? 7 : 9, color: 'rgba(255,255,255,0.8)', fontFamily: T.display, fontWeight: 700 }}>♠</span>
+          <span style={{ fontSize: small ? 8 : 11, color: 'rgba(255,255,255,0.8)', fontFamily: T.display, fontWeight: 700 }}>♠</span>
         </div>
       </div>
     </div>
@@ -173,34 +173,34 @@ function Card({ card, selected, onClick, small, faceDown, cutCard, glow, style: 
           width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: 2,
         }}>
-          <span style={{ fontSize: small ? 28 : 36 }}>🃏</span>
-          <span style={{ fontSize: small ? 7 : 8, fontFamily: T.display, color: '#8e44ad', fontWeight: 700, letterSpacing: 1 }}>JOKER</span>
+          <span style={{ fontSize: small ? 32 : 42 }}>🃏</span>
+          <span style={{ fontSize: small ? 8 : 9, fontFamily: T.display, color: '#8e44ad', fontWeight: 700, letterSpacing: 1 }}>JOKER</span>
         </div>
       ) : (
         <>
           {/* Top-left corner */}
           <div style={{
-            position: 'absolute', top: small ? 3 : 4, left: small ? 4 : 5,
+            position: 'absolute', top: small ? 4 : 5, left: small ? 5 : 7,
             display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, zIndex: 1,
           }}>
             <span style={{
-              fontSize: small ? 12 : 15, fontWeight: 800, color: clr,
+              fontSize: small ? 14 : 18, fontWeight: 800, color: clr,
               fontFamily: "'Georgia', 'Times New Roman', serif",
             }}>{card.rank}</span>
-            <span style={{ fontSize: small ? 8 : 10, color: clr, marginTop: 0 }}>{card.suit}</span>
+            <span style={{ fontSize: small ? 11 : 14, color: clr, marginTop: 0 }}>{card.suit}</span>
           </div>
 
           {/* Bottom-right corner (inverted) */}
           <div style={{
-            position: 'absolute', bottom: small ? 3 : 4, right: small ? 4 : 5,
+            position: 'absolute', bottom: small ? 4 : 5, right: small ? 5 : 7,
             display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1,
             transform: 'rotate(180deg)', zIndex: 1,
           }}>
             <span style={{
-              fontSize: small ? 12 : 15, fontWeight: 800, color: clr,
+              fontSize: small ? 14 : 18, fontWeight: 800, color: clr,
               fontFamily: "'Georgia', 'Times New Roman', serif",
             }}>{card.rank}</span>
-            <span style={{ fontSize: small ? 8 : 10, color: clr, marginTop: 0 }}>{card.suit}</span>
+            <span style={{ fontSize: small ? 11 : 14, color: clr, marginTop: 0 }}>{card.suit}</span>
           </div>
 
           {/* Center content */}
@@ -212,11 +212,11 @@ function Card({ card, selected, onClick, small, faceDown, cutCard, glow, style: 
               gap: small ? 1 : 2,
             }}>
               <span style={{
-                fontSize: small ? 28 : 38, color: clr, lineHeight: 1,
+                fontSize: small ? 34 : 46, color: clr, lineHeight: 1,
                 textShadow: '0 1px 2px rgba(0,0,0,0.08)',
               }}>{FACE_ICONS[card.rank]}</span>
               <span style={{
-                fontSize: small ? 6 : 7, fontWeight: 700, color: clr,
+                fontSize: small ? 7 : 9, fontWeight: 700, color: clr,
                 letterSpacing: small ? 0.5 : 1, fontFamily: T.display, opacity: 0.7,
               }}>{FACE_LABELS[card.rank]}</span>
             </div>
@@ -227,7 +227,7 @@ function Card({ card, selected, onClick, small, faceDown, cutCard, glow, style: 
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <span style={{
-                fontSize: small ? 32 : 42, color: clr, lineHeight: 1,
+                fontSize: small ? 38 : 50, color: clr, lineHeight: 1,
                 textShadow: '0 1px 3px rgba(0,0,0,0.1)',
               }}>{card.suit}</span>
             </div>
@@ -235,7 +235,7 @@ function Card({ card, selected, onClick, small, faceDown, cutCard, glow, style: 
             /* Number card: pip layout */
             <div style={{
               position: 'absolute',
-              top: small ? 18 : 22, bottom: small ? 18 : 22,
+              top: small ? 22 : 28, bottom: small ? 22 : 28,
               left: small ? 8 : 12, right: small ? 8 : 12,
             }}>
               {(PIP_POS[numRank] || []).map(([x, y], i) => (
@@ -243,7 +243,7 @@ function Card({ card, selected, onClick, small, faceDown, cutCard, glow, style: 
                   position: 'absolute',
                   left: `${x}%`, top: `${y}%`,
                   transform: `translate(-50%, -50%)${y > 55 ? ' rotate(180deg)' : ''}`,
-                  fontSize: small ? 9 : 12, color: clr, lineHeight: 1,
+                  fontSize: small ? 12 : 16, color: clr, lineHeight: 1,
                 }}>{card.suit}</span>
               ))}
             </div>
@@ -1082,6 +1082,25 @@ export default function App() {
   const drawn = gs?.drawn;
 
   const prevTurnRef = useRef(false);
+  const audioCtxRef = useRef(null);
+
+  // Unlock audio on first user interaction (browsers block autoplay)
+  useEffect(() => {
+    function unlockAudio() {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume();
+      }
+    }
+    document.addEventListener('click', unlockAudio, { once: false });
+    document.addEventListener('touchstart', unlockAudio, { once: false });
+    return () => {
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
 
   useEffect(() => {
     if (gs && gs.phase !== 'lobby' && roomCode && myId) subscribeToHand(roomCode, myId);
@@ -1098,20 +1117,22 @@ export default function App() {
     if (!wasMy && isMyTurn && gs?.phase === 'play') {
       // Vibrate
       if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-      // Play tone using Web Audio API
+      // Play tone using shared AudioContext
       try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(660, ctx.currentTime);
-        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.15, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.3);
+        const ctx = audioCtxRef.current;
+        if (ctx && ctx.state === 'running') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(660, ctx.currentTime);
+          osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
+          gain.gain.setValueAtTime(0.2, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+          osc.start(ctx.currentTime);
+          osc.stop(ctx.currentTime + 0.35);
+        }
       } catch {}
     }
   }, [isMyTurn, gs?.phase]);
