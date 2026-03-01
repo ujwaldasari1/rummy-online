@@ -573,6 +573,54 @@ function RulesPanel() {
   );
 }
 
+// ─── Host Transfer Button ────────────────────────────────────────────
+function HostTransferBtn({ players, hostId, onTransfer }) {
+  const [open, setOpen] = useState(false);
+  const others = (players || []).filter(p => p.id !== hostId && !p.eliminated);
+  if (others.length === 0) return null;
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <button onClick={() => setOpen(!open)} style={{
+        padding: '4px 10px', borderRadius: T.radius.sm,
+        background: open ? T.goldMuted : T.glassLight,
+        border: `1px solid ${open ? T.goldBorder : T.glassBorder}`,
+        color: T.goldText, fontSize: 10, cursor: 'pointer',
+        fontFamily: T.display, fontWeight: 700, letterSpacing: 1,
+        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+        transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', gap: 4,
+      }}>👑 TRANSFER</button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '110%', right: 0, zIndex: 30,
+          minWidth: 160, background: T.glassHeavy, border: `1px solid ${T.glassBorder}`,
+          borderRadius: 12, overflow: 'hidden', boxShadow: T.shadowLg,
+          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          animation: 'fadeSlideUp 0.15s ease-out',
+        }}>
+          <div style={{
+            padding: '8px 12px', borderBottom: `1px solid ${T.glassBorder}`,
+            color: T.goldText, fontSize: 9, fontFamily: T.display, fontWeight: 700,
+            letterSpacing: 2, textAlign: 'center',
+          }}>MAKE HOST</div>
+          {others.map(p => (
+            <button key={p.id} onClick={() => { onTransfer(p.id); setOpen(false); }} style={{
+              display: 'block', width: '100%', padding: '10px 14px', border: 'none',
+              background: 'transparent', color: T.textSecondary, fontSize: 12,
+              fontFamily: T.body, cursor: 'pointer', textAlign: 'left',
+              borderBottom: `1px solid ${T.glassBorder}08`,
+              transition: 'background 0.15s ease',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = T.glassLight}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >{p.name}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Results Panel (Round History) ───────────────────────────────────
 function ResultsPanel({ history }) {
   const [open, setOpen] = useState(false);
@@ -801,7 +849,7 @@ export default function App() {
     try {
       const code = genCode();
       const state = {
-        phase: 'lobby',
+        phase: 'lobby', hostId: myId,
         players: [{ id: myId, name: myName.trim(), score: 0, eliminated: false }],
         dealer: 0, currentPlayer: 0, stockPile: [], discardPile: [],
         cutCard: null, cutterIdx: null, round: 1, declarer: null,
@@ -873,6 +921,13 @@ export default function App() {
     dealNewRound(state, 0);
     await saveFullDeal(roomCode, state);
     subscribeToHand(roomCode, myId);
+  }
+
+  // ── Transfer Host ──
+  async function transferHost(targetId) {
+    const state = { ...gs, players: gs.players.map(p => ({ ...p })) };
+    state.hostId = targetId;
+    await saveGameState(roomCode, state);
   }
 
   // ── Perform Cut ──
@@ -1353,7 +1408,7 @@ export default function App() {
 
   // ── Derived ──
   const myIdx = gs?.players?.findIndex(p => p.id === myId) ?? -1;
-  const isHost = myIdx === 0;
+  const isHost = myId === (gs?.hostId ?? gs?.players?.[0]?.id);
   const isMyTurn = gs?.currentPlayer === myIdx;
   const isCutter = gs?.cutterIdx === myIdx;
   const cut = gs?.cutCard;
@@ -1585,7 +1640,9 @@ export default function App() {
             <div style={{ color: T.textMuted, fontSize: 10, letterSpacing: 2.5, marginBottom: 12, fontFamily: T.display, fontWeight: 600 }}>
               PLAYERS ({gs?.players?.length || 0}/8)
             </div>
-            {gs?.players?.map((p, i) => (
+            {gs?.players?.map((p, i) => {
+              const isPlayerHost = p.id === (gs?.hostId ?? gs?.players?.[0]?.id);
+              return (
               <div key={p.id} style={{
                 display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px',
                 background: p.id === myId ? T.goldMuted : T.glassLight,
@@ -1596,32 +1653,40 @@ export default function App() {
               }}>
                 <div style={{
                   width: 34, height: 34, borderRadius: '50%',
-                  background: i === 0 ? `linear-gradient(135deg, ${T.goldLight}, ${T.gold}, ${T.goldDark})` : `linear-gradient(135deg, ${T.bgMid}, ${T.bgLight})`,
-                  border: i === 0 ? `1px solid ${T.goldLight}` : `1px solid ${T.glassBorder}`,
+                  background: isPlayerHost ? `linear-gradient(135deg, ${T.goldLight}, ${T.gold}, ${T.goldDark})` : `linear-gradient(135deg, ${T.bgMid}, ${T.bgLight})`,
+                  border: isPlayerHost ? `1px solid ${T.goldLight}` : `1px solid ${T.glassBorder}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: i === 0 ? 14 : 13, fontWeight: 700, color: i === 0 ? T.bgDeepest : T.textMuted,
-                  fontFamily: T.display, boxShadow: i === 0 ? '0 2px 8px rgba(212,175,55,0.3)' : 'none',
-                }}>{i === 0 ? '★' : p.name[0]?.toUpperCase()}</div>
+                  fontSize: isPlayerHost ? 14 : 13, fontWeight: 700, color: isPlayerHost ? T.bgDeepest : T.textMuted,
+                  fontFamily: T.display, boxShadow: isPlayerHost ? '0 2px 8px rgba(212,175,55,0.3)' : 'none',
+                }}>{isPlayerHost ? '★' : p.name[0]?.toUpperCase()}</div>
                 <span style={{ color: p.id === myId ? T.goldText : T.textSecondary, fontSize: 14, fontFamily: T.body, fontWeight: p.id === myId ? 600 : 400 }}>
                   {p.name} {p.id === myId ? '(you)' : ''}
                 </span>
-                {i === 0 && <span style={{ marginLeft: 'auto', fontSize: 9, color: T.goldDark, fontFamily: T.display, letterSpacing: 1, fontWeight: 600 }}>HOST</span>}
+                {isPlayerHost && <span style={{ marginLeft: 'auto', fontSize: 9, color: T.goldDark, fontFamily: T.display, letterSpacing: 1, fontWeight: 600 }}>HOST</span>}
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {err && <p style={{ color: T.danger, fontSize: 12, margin: '0 0 12px', fontFamily: T.body }}>{err}</p>}
 
           {isHost ? (
-            <button onClick={startGame} style={{ ...goldBtn, opacity: (gs?.players?.length || 0) < 2 ? 0.5 : 1 }}
-              disabled={(gs?.players?.length || 0) < 2}>
-              START GAME ({gs?.players?.length || 0} players)
-              <span style={{
-                position: 'absolute', top: 0, left: '-100%', width: '60%', height: '100%',
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent)',
-                animation: 'shineSweep 3s ease-in-out infinite', pointerEvents: 'none',
-              }} />
-            </button>
+            <>
+              <button onClick={startGame} style={{ ...goldBtn, opacity: (gs?.players?.length || 0) < 2 ? 0.5 : 1 }}
+                disabled={(gs?.players?.length || 0) < 2}>
+                START GAME ({gs?.players?.length || 0} players)
+                <span style={{
+                  position: 'absolute', top: 0, left: '-100%', width: '60%', height: '100%',
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent)',
+                  animation: 'shineSweep 3s ease-in-out infinite', pointerEvents: 'none',
+                }} />
+              </button>
+              {(gs?.players?.length || 0) >= 2 && (
+                <div style={{ marginTop: 10, display: 'flex', justifyContent: 'center' }}>
+                  <HostTransferBtn players={gs?.players} hostId={gs?.hostId ?? gs?.players?.[0]?.id} onTransfer={transferHost} />
+                </div>
+              )}
+            </>
           ) : (
             <div style={{
               padding: '16px 20px', borderRadius: T.radius.md, background: T.glassLight,
@@ -1746,6 +1811,7 @@ export default function App() {
               <span style={{ color: T.textDim, fontSize: 10, fontFamily: T.accent, fontStyle: 'italic' }}>{subtitle}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {isHost && <HostTransferBtn players={gs?.players} hostId={gs?.hostId ?? gs?.players?.[0]?.id} onTransfer={transferHost} />}
               <ResultsPanel history={gs?.roundHistory} />
               <DiscardLog log={gs.discardLog} cutCard={cut} />
               <span style={{ color: T.textDim, fontSize: 10, fontFamily: T.body, letterSpacing: 0.5 }}>R{gs.round} · {roomCode}</span>
@@ -1905,6 +1971,7 @@ export default function App() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {isHost && <HostTransferBtn players={gs?.players} hostId={gs?.hostId ?? gs?.players?.[0]?.id} onTransfer={transferHost} />}
             <ResultsPanel history={gs?.roundHistory} />
             <DiscardLog log={gs.discardLog} cutCard={cut} />
             <span style={{ color: T.textDim, fontSize: 10, fontFamily: T.body, letterSpacing: 0.5 }}>R{gs.round} · {hand.length} cards · {roomCode}</span>
@@ -2152,7 +2219,8 @@ export default function App() {
       <div style={{ ...cBase, background: darkBg }}>
         <Watermark />
         <div style={{ ...box, padding: '36px 28px', position: 'relative', zIndex: 1, animation: 'fadeSlideUp 0.5s ease-out' }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginBottom: 4 }}>
+            {isHost && <HostTransferBtn players={gs?.players} hostId={gs?.hostId ?? gs?.players?.[0]?.id} onTransfer={transferHost} />}
             <ResultsPanel history={gs?.roundHistory} />
           </div>
           <div style={{ textAlign: 'center', marginBottom: 6 }}>
