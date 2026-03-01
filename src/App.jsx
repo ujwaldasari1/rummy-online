@@ -70,72 +70,104 @@ function getMyId() {
   return id;
 }
 
+// ─── Pip Layouts (classic playing card positions) ───────────────────
+const PIP_POS = {
+  2:  [[50,20],[50,80]],
+  3:  [[50,20],[50,50],[50,80]],
+  4:  [[30,20],[70,20],[30,80],[70,80]],
+  5:  [[30,20],[70,20],[50,50],[30,80],[70,80]],
+  6:  [[30,20],[70,20],[30,50],[70,50],[30,80],[70,80]],
+  7:  [[30,20],[70,20],[50,35],[30,50],[70,50],[30,80],[70,80]],
+  8:  [[30,20],[70,20],[50,35],[30,50],[70,50],[50,65],[30,80],[70,80]],
+  9:  [[30,15],[70,15],[30,38],[70,38],[50,50],[30,62],[70,62],[30,85],[70,85]],
+  10: [[30,15],[70,15],[50,28],[30,38],[70,38],[30,62],[70,62],[50,72],[30,85],[70,85]],
+};
+const FACE_ICONS = { J: '♞', Q: '♛', K: '♚' };
+const FACE_LABELS = { J: 'JACK', Q: 'QUEEN', K: 'KING' };
+
 // ─── Card Component ─────────────────────────────────────────────────
 function Card({ card, selected, onClick, small, faceDown, cutCard, glow, style: sx }) {
   const w = small ? 58 : 72, h = small ? 84 : 104;
 
+  // ── Card Back (Bicycle-style red) ──
   if (faceDown) return (
     <div onClick={onClick} style={{
-      width: w, height: h, borderRadius: 10,
-      background: 'linear-gradient(145deg, #1a3a5c, #0d2848, #0a1e3a)',
-      border: '2px solid #2a5a8c',
+      width: w, height: h, borderRadius: 8,
+      background: 'linear-gradient(145deg, #c62828, #b71c1c, #8e1515)',
+      border: '2.5px solid #fff',
       cursor: onClick ? 'pointer' : 'default',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      boxShadow: '0 3px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)',
+      boxShadow: '0 3px 12px rgba(0,0,0,0.4)',
       flexShrink: 0, position: 'relative', overflow: 'hidden',
       transition: 'all 0.2s ease', ...sx,
     }}>
+      {/* Inner white border */}
       <div style={{
-        position: 'absolute', inset: small ? 4 : 5,
-        border: '1.5px solid rgba(212,175,55,0.25)', borderRadius: 6,
+        position: 'absolute', inset: small ? 3 : 4,
+        border: '1.5px solid rgba(255,255,255,0.6)', borderRadius: 5,
       }} />
+      {/* Diamond cross-hatch pattern */}
       <div style={{
-        position: 'absolute', inset: small ? 8 : 10,
+        position: 'absolute', inset: small ? 6 : 8,
         backgroundImage: `
-          repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(212,175,55,0.06) 6px, rgba(212,175,55,0.06) 7px),
-          repeating-linear-gradient(-45deg, transparent, transparent 6px, rgba(212,175,55,0.06) 6px, rgba(212,175,55,0.06) 7px)
-        `, borderRadius: 4,
+          repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.08) 4px, rgba(255,255,255,0.08) 5px),
+          repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(255,255,255,0.08) 4px, rgba(255,255,255,0.08) 5px)
+        `, borderRadius: 3,
       }} />
+      {/* Center medallion */}
       <div style={{
-        width: small ? 18 : 24, height: small ? 18 : 24,
-        border: '1.5px solid rgba(212,175,55,0.3)', borderRadius: '50%',
+        width: small ? 22 : 30, height: small ? 22 : 30,
+        border: '2px solid rgba(255,255,255,0.7)', borderRadius: '50%',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'rgba(212,175,55,0.08)', position: 'relative', zIndex: 1,
+        background: 'rgba(255,255,255,0.1)', position: 'relative', zIndex: 1,
       }}>
-        <span style={{ fontSize: small ? 8 : 10, color: 'rgba(212,175,55,0.5)', fontFamily: T.display, fontWeight: 700 }}>C</span>
+        <div style={{
+          width: small ? 14 : 18, height: small ? 14 : 18,
+          border: '1px solid rgba(255,255,255,0.5)', borderRadius: '50%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <span style={{ fontSize: small ? 7 : 9, color: 'rgba(255,255,255,0.8)', fontFamily: T.display, fontWeight: 700 }}>♠</span>
+        </div>
       </div>
     </div>
   );
 
   const wild = cutCard && isWild(card, cutCard);
   const clr = card.nat ? '#8e44ad' : SUIT_COLORS[card.suit];
+  const isFace = ['J', 'Q', 'K'].includes(card.rank);
+  const isAce = card.rank === 'A';
+  const numRank = parseInt(card.rank);
+  const isNum = !card.nat && !isFace && !isAce && numRank >= 2 && numRank <= 10;
 
-  const borderColor = selected ? T.gold : wild ? T.warning : glow ? T.success : 'rgba(180,180,180,0.3)';
-  const cardBg = selected ? T.cardSelected : wild ? `linear-gradient(135deg, ${T.cardWild}, #fff8ee)` : T.cardWhite;
+  const borderColor = selected ? T.gold : wild ? T.warning : glow ? T.success : 'rgba(200,200,200,0.4)';
+  const cardBg = selected ? T.cardSelected : wild ? `linear-gradient(135deg, ${T.cardWild}, #fff8ee)` : '#fff';
   const cardShadow = selected
     ? `0 6px 20px rgba(212,175,55,0.4), 0 0 0 2px ${T.gold}`
     : glow ? `0 4px 16px rgba(56,193,114,0.3), 0 0 0 1px ${T.success}`
     : wild ? '0 3px 14px rgba(232,168,92,0.25)'
-    : '0 2px 8px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)';
+    : '0 2px 8px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.1)';
 
   return (
     <div onClick={onClick} style={{
-      width: w, height: h, borderRadius: 10,
+      width: w, height: h, borderRadius: 8,
       background: cardBg, border: `2px solid ${borderColor}`,
       cursor: onClick ? 'pointer' : 'default',
       boxShadow: cardShadow,
       transform: selected ? 'translateY(-10px) scale(1.04)' : 'none',
       transition: 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
-      flexShrink: 0, position: 'relative', userSelect: 'none', ...sx,
+      flexShrink: 0, position: 'relative', userSelect: 'none', overflow: 'hidden', ...sx,
     }}>
+      {/* Wild badge */}
       {wild && (
         <div style={{
           position: 'absolute', top: -4, right: -4, width: 18, height: 18,
           borderRadius: '50%', background: `linear-gradient(135deg, ${T.gold}, ${T.goldDark})`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 2px 6px rgba(212,175,55,0.5)', zIndex: 2,
+          boxShadow: '0 2px 6px rgba(212,175,55,0.5)', zIndex: 3,
         }}><span style={{ fontSize: 10, color: '#fff' }}>★</span></div>
       )}
+
+      {/* Joker */}
       {card.nat ? (
         <div style={{
           width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
@@ -146,26 +178,83 @@ function Card({ card, selected, onClick, small, faceDown, cutCard, glow, style: 
         </div>
       ) : (
         <>
+          {/* Top-left corner */}
           <div style={{
-            position: 'absolute', top: small ? 4 : 5, left: small ? 5 : 6,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1,
+            position: 'absolute', top: small ? 3 : 4, left: small ? 4 : 5,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1, zIndex: 1,
           }}>
-            <span style={{ fontSize: small ? 13 : 16, fontWeight: 800, color: clr, fontFamily: T.display }}>{card.rank}</span>
-            <span style={{ fontSize: small ? 10 : 13, color: clr, marginTop: -1 }}>{card.suit}</span>
+            <span style={{
+              fontSize: small ? 12 : 15, fontWeight: 800, color: clr,
+              fontFamily: "'Georgia', 'Times New Roman', serif",
+            }}>{card.rank}</span>
+            <span style={{ fontSize: small ? 8 : 10, color: clr, marginTop: 0 }}>{card.suit}</span>
           </div>
+
+          {/* Bottom-right corner (inverted) */}
           <div style={{
-            position: 'absolute', top: '50%', left: '50%',
-            transform: 'translate(-50%, -50%)',
-            fontSize: small ? 26 : 34, color: clr, opacity: 0.85,
-          }}>{card.suit}</div>
-          <div style={{
-            position: 'absolute', bottom: small ? 4 : 5, right: small ? 5 : 6,
+            position: 'absolute', bottom: small ? 3 : 4, right: small ? 4 : 5,
             display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1,
-            transform: 'rotate(180deg)',
+            transform: 'rotate(180deg)', zIndex: 1,
           }}>
-            <span style={{ fontSize: small ? 13 : 16, fontWeight: 800, color: clr, fontFamily: T.display }}>{card.rank}</span>
-            <span style={{ fontSize: small ? 10 : 13, color: clr, marginTop: -1 }}>{card.suit}</span>
+            <span style={{
+              fontSize: small ? 12 : 15, fontWeight: 800, color: clr,
+              fontFamily: "'Georgia', 'Times New Roman', serif",
+            }}>{card.rank}</span>
+            <span style={{ fontSize: small ? 8 : 10, color: clr, marginTop: 0 }}>{card.suit}</span>
           </div>
+
+          {/* Center content */}
+          {isFace ? (
+            /* Face card: icon + label */
+            <div style={{
+              position: 'absolute', inset: 0,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              gap: small ? 1 : 2,
+            }}>
+              <span style={{
+                fontSize: small ? 28 : 38, color: clr, lineHeight: 1,
+                textShadow: '0 1px 2px rgba(0,0,0,0.08)',
+              }}>{FACE_ICONS[card.rank]}</span>
+              <span style={{
+                fontSize: small ? 6 : 7, fontWeight: 700, color: clr,
+                letterSpacing: small ? 0.5 : 1, fontFamily: T.display, opacity: 0.7,
+              }}>{FACE_LABELS[card.rank]}</span>
+            </div>
+          ) : isAce ? (
+            /* Ace: large centered suit */
+            <div style={{
+              position: 'absolute', inset: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <span style={{
+                fontSize: small ? 32 : 42, color: clr, lineHeight: 1,
+                textShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              }}>{card.suit}</span>
+            </div>
+          ) : isNum ? (
+            /* Number card: pip layout */
+            <div style={{
+              position: 'absolute',
+              top: small ? 18 : 22, bottom: small ? 18 : 22,
+              left: small ? 8 : 12, right: small ? 8 : 12,
+            }}>
+              {(PIP_POS[numRank] || []).map(([x, y], i) => (
+                <span key={i} style={{
+                  position: 'absolute',
+                  left: `${x}%`, top: `${y}%`,
+                  transform: `translate(-50%, -50%)${y > 55 ? ' rotate(180deg)' : ''}`,
+                  fontSize: small ? 9 : 12, color: clr, lineHeight: 1,
+                }}>{card.suit}</span>
+              ))}
+            </div>
+          ) : (
+            /* Fallback */
+            <div style={{
+              position: 'absolute', top: '50%', left: '50%',
+              transform: 'translate(-50%, -50%)',
+              fontSize: small ? 26 : 34, color: clr, opacity: 0.85,
+            }}>{card.suit}</div>
+          )}
         </>
       )}
     </div>
