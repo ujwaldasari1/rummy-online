@@ -1036,7 +1036,7 @@ export default function App() {
 
       // Late join — spectator until next round
       if (state.phase !== 'lobby') {
-        if ((state.players?.length || 0) >= 8) { setErr('Room is full!'); setLoading(false); return; }
+        if ((state.players?.length || 0) >= 11) { setErr('Room is full!'); setLoading(false); return; }
         state.players.push({ id: myId, name: myName.trim(), score: 0, eliminated: false, spectator: true });
         await saveGameState(code, state);
         setRoomCode(code);
@@ -1048,7 +1048,7 @@ export default function App() {
         return;
       }
 
-      if ((state.players?.length || 0) >= 8) { setErr('Room is full!'); setLoading(false); return; }
+      if ((state.players?.length || 0) >= 11) { setErr('Room is full!'); setLoading(false); return; }
       if (!state.players.some(p => p.id === myId)) {
         state.players.push({ id: myId, name: myName.trim(), score: 0, eliminated: false });
         await saveGameState(code, state);
@@ -1799,7 +1799,7 @@ export default function App() {
 
           <div style={{ textAlign: 'left', marginBottom: 24 }}>
             <div style={{ color: T.textMuted, fontSize: 10, letterSpacing: 2.5, marginBottom: 12, fontFamily: T.display, fontWeight: 600 }}>
-              PLAYERS ({gs?.players?.length || 0}/8)
+              PLAYERS ({gs?.players?.length || 0}/11)
             </div>
             {gs?.players?.map((p, i) => {
               const isPlayerHost = p.id === (gs?.hostId ?? gs?.players?.[0]?.id);
