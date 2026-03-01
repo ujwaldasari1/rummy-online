@@ -574,10 +574,13 @@ function RulesPanel() {
 }
 
 // ─── Player Menu (name tap → Rules + Transfer Host) ─────────────────
-function PlayerMenu({ name, score, isHost, players, hostId, onTransfer }) {
+function PlayerMenu({ name, score, isHost, players, hostId, onTransfer, history }) {
   const [open, setOpen] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
+  const [expanded, setExpanded] = useState(null);
+  const rounds = history || [];
   const others = (players || []).filter(p => p.id !== hostId && !p.eliminated);
 
   const ruleSections = [
@@ -636,6 +639,18 @@ function PlayerMenu({ name, score, isHost, players, hostId, onTransfer }) {
           backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
           animation: 'fadeSlideUp 0.15s ease-out',
         }}>
+          {rounds.length > 0 && (
+            <button onClick={(e) => { e.stopPropagation(); setShowStats(true); setOpen(false); }} style={{
+              display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '11px 14px', border: 'none',
+              background: 'transparent', color: T.textSecondary, fontSize: 12,
+              fontFamily: T.body, cursor: 'pointer', textAlign: 'left',
+              borderBottom: `1px solid ${T.glassBorder}20`,
+              transition: 'background 0.15s ease',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = T.glassLight}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            ><span style={{ fontSize: 14 }}>📊</span> Stats</button>
+          )}
           <button onClick={(e) => { e.stopPropagation(); setShowRules(true); setOpen(false); }} style={{
             display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '11px 14px', border: 'none',
             background: 'transparent', color: T.textSecondary, fontSize: 12,
@@ -712,6 +727,142 @@ function PlayerMenu({ name, score, isHost, players, hostId, onTransfer }) {
                 ))}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stats panel (fixed overlay) */}
+      {showStats && rounds.length > 0 && (
+        <div style={{
+          position: 'fixed', top: 50, right: 8, zIndex: 30,
+          width: 340, maxHeight: 480,
+          background: T.glassHeavy, border: `1px solid ${T.glassBorder}`,
+          borderRadius: 16, overflow: 'hidden', boxShadow: T.shadowLg,
+          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          animation: 'fadeSlideUp 0.2s ease-out',
+          display: 'flex', flexDirection: 'column',
+        }}>
+          <div style={{
+            padding: '12px 14px', borderBottom: `1px solid ${T.glassBorder}`,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <span style={{ color: T.goldText, fontSize: 11, fontFamily: T.display, fontWeight: 700, letterSpacing: 2 }}>ROUND HISTORY</span>
+            <button onClick={() => setShowStats(false)} style={{
+              background: 'none', border: 'none', color: T.textDim, fontSize: 16, cursor: 'pointer', padding: '0 4px',
+            }}>✕</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px', maxHeight: 420 }}>
+            {[...rounds].reverse().map((r, ri) => {
+              const isOpen = expanded === r.round;
+              return (
+                <div key={r.round} style={{
+                  marginBottom: 8, borderRadius: T.radius.sm, overflow: 'hidden',
+                  border: `1px solid ${T.glassBorder}`, background: T.glassLight,
+                  animation: `fadeSlideUp ${0.1 + ri * 0.04}s ease-out`,
+                }}>
+                  <div onClick={() => setExpanded(isOpen ? null : r.round)} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 12px', cursor: 'pointer',
+                    background: isOpen ? T.goldMuted : 'transparent',
+                    transition: 'background 0.2s ease',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 10, fontFamily: T.display, fontWeight: 700, color: T.goldText, letterSpacing: 1 }}>R{r.round}</span>
+                      <span style={{ fontSize: 12, color: T.textSecondary, fontFamily: T.body }}>
+                        {r.invalidShow ? '❌ ' : '👑 '}{r.declarerName || '?'}
+                        {r.invalidShow ? ' (invalid)' : ' wins'}
+                      </span>
+                    </div>
+                    <span style={{ color: T.textDim, fontSize: 12, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'none' }}>▼</span>
+                  </div>
+                  {isOpen && (
+                    <div style={{ padding: '8px 10px', borderTop: `1px solid ${T.glassBorder}` }}>
+                      {r.cutCard && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                          <span style={{ fontSize: 9, color: T.textDim, fontFamily: T.display, letterSpacing: 1, fontWeight: 600 }}>CUT:</span>
+                          <span style={{
+                            fontSize: 12, fontWeight: 800, fontFamily: T.display, padding: '1px 6px', borderRadius: 4,
+                            background: 'rgba(255,255,255,0.9)',
+                            color: r.cutCard.nat ? T.purple : SUIT_COLORS[r.cutCard.suit],
+                          }}>{r.cutCard.nat ? '🃏' : r.cutCard.rank + r.cutCard.suit}</span>
+                        </div>
+                      )}
+                      <div style={{ borderRadius: 6, overflow: 'hidden', border: `1px solid ${T.glassBorder}`, marginBottom: 8 }}>
+                        <div style={{
+                          display: 'grid', gridTemplateColumns: '1fr 50px 50px', padding: '6px 10px',
+                          background: T.glassMid, fontSize: 8, color: T.textDim, fontFamily: T.display, fontWeight: 700, letterSpacing: 1.5,
+                        }}>
+                          <span>PLAYER</span><span style={{ textAlign: 'right' }}>PEN</span><span style={{ textAlign: 'right' }}>TOTAL</span>
+                        </div>
+                        {r.results?.map((res, i) => {
+                          if (res.elim && !res.wasElim && !res.winner) return null;
+                          return (
+                            <div key={i} style={{
+                              display: 'grid', gridTemplateColumns: '1fr 50px 50px', padding: '5px 10px',
+                              borderTop: `1px solid rgba(255,255,255,0.03)`,
+                              background: res.winner ? 'rgba(56,193,114,0.05)' : res.wasElim ? 'rgba(231,76,60,0.05)' : 'transparent',
+                            }}>
+                              <span style={{ fontSize: 11, color: res.winner ? T.success : res.wasElim ? T.danger : T.textSecondary, fontFamily: T.body }}>
+                                {res.winner ? '👑' : ''}{res.name}{res.wasElim ? ' 💀' : res.packed ? ' 🏳️' : ''}
+                              </span>
+                              <span style={{ textAlign: 'right', fontSize: 11, fontWeight: 700, color: res.penalty ? T.warning : T.success, fontFamily: T.display }}>
+                                {res.penalty ? '+' + res.penalty : '0'}
+                              </span>
+                              <span style={{ textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.textSecondary, fontFamily: T.display }}>
+                                {res.newScore !== undefined ? res.newScore : '—'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {r.hands && Object.keys(r.hands).length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 8, color: T.textDim, fontFamily: T.display, letterSpacing: 1.5, fontWeight: 700, marginBottom: 6 }}>HANDS</div>
+                          {r.results?.map((res, i) => {
+                            const pid = r.playerIds?.[i];
+                            const ph = pid ? r.hands[pid] : null;
+                            if (!ph || !ph.hand || !ph.hand.length) return null;
+                            const playerGroups = (ph.groups || [ph.hand.map(c => c.id)]).map(gids =>
+                              gids.map(id => ph.hand.find(c => c.id === id)).filter(Boolean)
+                            );
+                            return (
+                              <div key={i} style={{
+                                marginBottom: 8, padding: '6px 8px', borderRadius: 6,
+                                background: res.winner ? 'rgba(56,193,114,0.04)' : 'rgba(0,0,0,0.1)',
+                                border: `1px solid ${res.winner ? 'rgba(56,193,114,0.15)' : T.glassBorder}`,
+                              }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: res.winner ? T.success : T.textSecondary, fontFamily: T.body }}>
+                                  {res.winner ? '👑 ' : ''}{res.name}
+                                </span>
+                                {playerGroups.map((groupCards, gi) => {
+                                  const m = groupCards.length >= 3 ? validateMeld(groupCards, r.cutCard) : { ok: false };
+                                  return (
+                                    <div key={gi} style={{ marginTop: 3 }}>
+                                      <span style={{
+                                        color: m.ok ? T.success : T.textDim, fontSize: 8,
+                                        letterSpacing: 1, fontWeight: 600, fontFamily: T.body,
+                                      }}>
+                                        {m.ok ? (m.type === 'pure' ? '✓ PURE' : m.type === 'impure' ? '✓ SEQ' : '✓ SET') : 'UNMELDED'}
+                                      </span>
+                                      <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginTop: 2 }}>
+                                        {groupCards.map(card => (
+                                          <Card key={card.id} card={card} cutCard={r.cutCard} small
+                                            style={{ transform: 'scale(0.6)', transformOrigin: 'top left', margin: '0 -12px -18px 0' }} />
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -2103,9 +2254,8 @@ export default function App() {
           flexWrap: 'wrap', gap: 6, position: 'relative', zIndex: 2,
           boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
         }}>
-          <PlayerMenu name={me.name} score={me.score} isHost={isHost} players={gs?.players} hostId={gs?.hostId ?? gs?.players?.[0]?.id} onTransfer={transferHost} />
+          <PlayerMenu name={me.name} score={me.score} isHost={isHost} players={gs?.players} hostId={gs?.hostId ?? gs?.players?.[0]?.id} onTransfer={transferHost} history={gs?.roundHistory} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ResultsPanel history={gs?.roundHistory} />
             <DiscardLog log={gs.discardLog} cutCard={cut} />
             <span style={{ color: T.textDim, fontSize: 10, fontFamily: T.body, letterSpacing: 0.5 }}>R{gs.round} · {hand.length} cards · {roomCode}</span>
           </div>
