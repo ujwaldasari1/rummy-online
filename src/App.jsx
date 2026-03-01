@@ -243,7 +243,7 @@ function Card({ card, selected, onClick, small, faceDown, cutCard, glow, style: 
                   position: 'absolute',
                   left: `${x}%`, top: `${y}%`,
                   transform: `translate(-50%, -50%)${y > 55 ? ' rotate(180deg)' : ''}`,
-                  fontSize: small ? 12 : 16, color: clr, lineHeight: 1,
+                  fontSize: small ? 9 : 16, color: clr, lineHeight: 1,
                 }}>{card.suit}</span>
               ))}
             </div>
