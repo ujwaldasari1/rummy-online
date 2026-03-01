@@ -52,7 +52,9 @@ export function sortGroupByValue(cards) {
 
 // ─── Joker helpers ───────────────────────────────────────────────────
 export function isWild(card, cut) {
-  if (!cut || card.nat || cut.nat) return false;
+  if (!cut || card.nat) return false;
+  // If cut card is a printed joker, black aces (A♠, A♣) are wild
+  if (cut.nat) return card.rank === 'A' && SUIT_COLOR_GROUP[card.suit] === 'black';
   return card.rank === cut.rank && SUIT_COLOR_GROUP[card.suit] !== SUIT_COLOR_GROUP[cut.suit];
 }
 export function isJkr(card, cut) { return card.nat || isWild(card, cut); }

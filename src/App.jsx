@@ -287,7 +287,16 @@ function WildBadge({ cut }) {
       }}>{cut.nat ? '🃏' : cut.rank + cut.suit}</span>
       <span style={{ color: T.textMuted, fontSize: 14 }}>→</span>
       {cut.nat
-        ? <span style={{ color: T.textMuted, fontSize: 11 }}>No extra wilds</span>
+        ? <span style={{ fontWeight: 700 }}>
+            {['♠', '♣'].map(s =>
+              <span key={s} style={{
+                color: SUIT_COLORS[s], marginRight: 4,
+                background: 'rgba(255,255,255,0.85)', padding: '1px 6px', borderRadius: 4,
+                fontSize: 12, fontFamily: T.display,
+              }}>A{s}★</span>
+            )}
+            <span style={{ color: T.textMuted, marginLeft: 4, fontSize: 11 }}>wild</span>
+          </span>
         : <span style={{ fontWeight: 700 }}>
             {OPPOSITE_SUITS[cut.suit].map(s =>
               <span key={s} style={{
