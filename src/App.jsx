@@ -319,7 +319,7 @@ function Watermark() {
         color: 'rgba(212,175,55,0.018)', pointerEvents: 'none', zIndex: 0,
         whiteSpace: 'nowrap', userSelect: 'none',
         textShadow: '0 0 80px rgba(212,175,55,0.02)',
-      }}>CHALARAGERS</div>
+      }}>RUMMY PROS</div>
     </>
   );
 }
@@ -1233,18 +1233,18 @@ export default function App() {
             background: `linear-gradient(180deg, ${T.textPrimary} 40%, ${T.goldText} 100%)`,
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
             textShadow: 'none',
-          }}>CHALARAGERS</h1>
+          }}>RUMMY PROS</h1>
           <div style={divider} />
-          <p style={{ color: T.textMuted, textAlign: 'center', margin: '10px 0 4px', fontSize: 11, letterSpacing: 3, fontFamily: T.accent, fontWeight: 600, fontStyle: 'italic' }}>
+          <p style={{ color: T.textSecondary, textAlign: 'center', margin: '10px 0 4px', fontSize: 14, letterSpacing: 3, fontFamily: T.accent, fontWeight: 600, fontStyle: 'italic' }}>
             Online Multiplayer · Indian Rummy
           </p>
-          <p style={{ color: T.textDim, textAlign: 'center', margin: '0 0 30px', fontSize: 10, letterSpacing: 1.5, fontFamily: T.body }}>
-            Up to 8 players · 2 decks · 201 elimination
+          <p style={{ color: T.textMuted, textAlign: 'center', margin: '0 0 30px', fontSize: 13, letterSpacing: 2, fontFamily: T.body }}>
+            201 elimination
           </p>
 
           {err && <p style={{ color: T.danger, fontSize: 12, textAlign: 'center', margin: '0 0 14px', fontFamily: T.body, fontWeight: 500 }}>{err}</p>}
 
-          <label style={{ color: T.textSecondary, fontSize: 10, letterSpacing: 2, fontFamily: T.display, fontWeight: 600, textTransform: 'uppercase' }}>YOUR NAME</label>
+          <label style={{ color: T.textSecondary, fontSize: 13, letterSpacing: 3, fontFamily: T.display, fontWeight: 600, textTransform: 'uppercase' }}>YOUR NAME</label>
           <input value={myName} onChange={e => { setMyName(e.target.value); setErr(''); }}
             placeholder="Enter your name"
             onFocus={e => { e.target.style.borderColor = T.goldBorder; e.target.style.boxShadow = `0 0 0 3px ${T.goldMuted}`; }}
@@ -1268,7 +1268,7 @@ export default function App() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '14px 0' }}>
             <div style={{ flex: 1, height: 1, background: `linear-gradient(to right, transparent, ${T.glassBorder}, transparent)` }} />
-            <span style={{ color: T.textDim, fontSize: 11, letterSpacing: 3, fontFamily: T.display, fontWeight: 600 }}>OR JOIN</span>
+            <span style={{ color: T.textSecondary, fontSize: 13, letterSpacing: 3, fontFamily: T.display, fontWeight: 600 }}>OR JOIN</span>
             <div style={{ flex: 1, height: 1, background: `linear-gradient(to right, transparent, ${T.glassBorder}, transparent)` }} />
           </div>
 
@@ -2045,7 +2045,7 @@ export default function App() {
             animation: 'goldShine 3s linear infinite',
             position: 'relative',
           }}>{winner.name} WINS!</h2>
-          <p style={{ color: T.textDim, fontSize: 10, letterSpacing: 4, margin: '4px 0 6px', fontFamily: T.display, fontWeight: 600, position: 'relative' }}>CHALARAGERS</p>
+          <p style={{ color: T.textDim, fontSize: 10, letterSpacing: 4, margin: '4px 0 6px', fontFamily: T.display, fontWeight: 600, position: 'relative' }}>RUMMY PROS</p>
           <div style={divider} />
           <p style={{ color: T.textMuted, fontSize: 12, margin: '10px 0 24px', fontFamily: T.accent, fontStyle: 'italic', position: 'relative' }}>After {gs.round} rounds</p>
 
