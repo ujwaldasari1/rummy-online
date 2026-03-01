@@ -573,6 +573,152 @@ function RulesPanel() {
   );
 }
 
+// ─── Player Menu (name tap → Rules + Transfer Host) ─────────────────
+function PlayerMenu({ name, score, isHost, players, hostId, onTransfer }) {
+  const [open, setOpen] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
+  const others = (players || []).filter(p => p.id !== hostId && !p.eliminated);
+
+  const ruleSections = [
+    { title: 'OBJECTIVE', text: 'Arrange your 13 cards into valid groups (sequences and sets) and declare "Show" to win the round. The player with the lowest score at the end wins.' },
+    { title: 'CARD GROUPS', items: [
+      ['Pure Sequence', '3+ consecutive cards of the same suit, NO jokers. You need at least one to show. e.g. 4♥ 5♥ 6♥'],
+      ['Impure Sequence', '3+ consecutive cards of the same suit, using joker(s) as substitutes. e.g. 4♠ 🃏 6♠'],
+      ['Set', '3 or 4 cards of the same rank but different suits. May include jokers. e.g. 7♥ 7♠ 7♦'],
+    ]},
+    { title: 'JOKERS & WILDS', text: 'After dealing, a card is cut from the deck. Cards of the same rank but opposite color suits become wild jokers (marked with ★). Printed jokers (🃏) are always wild. Wilds substitute any card in sequences or sets.' },
+    { title: 'GAMEPLAY', items: [
+      ['Draw', 'On your turn, pick one card from the Stock pile (face-down) or the Discard pile (face-up).'],
+      ['Arrange', 'Organize your cards into groups. Tap to select, use Group/Ungroup buttons, or hold & drag to rearrange.'],
+      ['Discard', 'Select 1 card and tap Discard to end your turn.'],
+      ['Show', 'When your hand is fully arranged into valid groups, select a card to discard and tap Show. You must have at least 1 pure sequence.'],
+    ]},
+    { title: 'SCORING', items: [
+      ['Winner', '0 points for the round.'],
+      ['Losers', 'Points = sum of ungrouped card values. Face cards = 10, Ace = 10, Number cards = face value.'],
+      ['Pack (Drop)', '25 points penalty if you haven\'t drawn yet, 50 points if you have (middle drop).'],
+      ['Invalid Show', '80 points penalty.'],
+      ['Elimination', 'A player is eliminated when their score reaches 201.'],
+    ]},
+    { title: 'SPECIAL RULES', items: [
+      ['First Turn', 'You cannot declare Show on your very first turn.'],
+      ['3 Decks', 'When more than 7 players are active, 3 decks are used instead of 2.'],
+      ['All-Sets Show', 'In 3-deck games, you can show with all sets (no sequences) if you have at least one pure quadruplet (4 cards, same rank, all 4 different suits, no jokers).'],
+      ['Late Join', 'Players joining mid-game spectate until the next round and start with the highest existing score.'],
+    ]},
+  ];
+
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', position: 'relative' }}
+        onClick={() => { setOpen(!open); setShowTransfer(false); }}>
+        <div style={{
+          width: 30, height: 30, borderRadius: '50%',
+          background: `linear-gradient(135deg, ${T.goldMuted}, ${T.glassLight})`,
+          border: `1px solid ${T.goldBorder}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 11, fontWeight: 700, color: T.goldText, fontFamily: T.display,
+        }}>{name[0]?.toUpperCase()}</div>
+        <div>
+          <span style={{ color: T.textPrimary, fontSize: 14, fontWeight: 600, fontFamily: T.body }}>{name}</span>
+          <span style={{ color: T.goldText, fontSize: 11, marginLeft: 8, fontFamily: T.display, fontWeight: 700, letterSpacing: 1 }}>{score} pts</span>
+        </div>
+        <span style={{ color: T.textDim, fontSize: 8, marginLeft: 2 }}>▼</span>
+      </div>
+
+      {/* Dropdown menu */}
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, marginTop: 4, zIndex: 30,
+          minWidth: 180, background: T.glassHeavy, border: `1px solid ${T.glassBorder}`,
+          borderRadius: 12, overflow: 'hidden', boxShadow: T.shadowLg,
+          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          animation: 'fadeSlideUp 0.15s ease-out',
+        }}>
+          <button onClick={(e) => { e.stopPropagation(); setShowRules(true); setOpen(false); }} style={{
+            display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '11px 14px', border: 'none',
+            background: 'transparent', color: T.textSecondary, fontSize: 12,
+            fontFamily: T.body, cursor: 'pointer', textAlign: 'left',
+            borderBottom: `1px solid ${T.glassBorder}20`,
+            transition: 'background 0.15s ease',
+          }}
+            onMouseEnter={e => e.currentTarget.style.background = T.glassLight}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          ><span style={{ fontSize: 14 }}>📖</span> Rules</button>
+
+          {isHost && others.length > 0 && (
+            <>
+              <button onClick={(e) => { e.stopPropagation(); setShowTransfer(!showTransfer); }} style={{
+                display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '11px 14px', border: 'none',
+                background: showTransfer ? T.glassLight : 'transparent', color: T.textSecondary, fontSize: 12,
+                fontFamily: T.body, cursor: 'pointer', textAlign: 'left',
+                transition: 'background 0.15s ease',
+              }}
+                onMouseEnter={e => e.currentTarget.style.background = T.glassLight}
+                onMouseLeave={e => { if (!showTransfer) e.currentTarget.style.background = 'transparent'; }}
+              ><span style={{ fontSize: 14 }}>👑</span> Transfer Host</button>
+              {showTransfer && others.map(p => (
+                <button key={p.id} onClick={(e) => { e.stopPropagation(); onTransfer(p.id); setOpen(false); setShowTransfer(false); }} style={{
+                  display: 'block', width: '100%', padding: '9px 14px 9px 36px', border: 'none',
+                  background: 'transparent', color: T.goldText, fontSize: 11,
+                  fontFamily: T.body, cursor: 'pointer', textAlign: 'left',
+                  borderBottom: `1px solid ${T.glassBorder}08`,
+                  transition: 'background 0.15s ease',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.background = T.glassLight}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >→ {p.name}</button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Rules panel (fixed overlay) */}
+      {showRules && (
+        <div style={{
+          position: 'fixed', top: 50, right: 8, zIndex: 30,
+          width: 320, maxHeight: 440,
+          background: T.glassHeavy, border: `1px solid ${T.glassBorder}`,
+          borderRadius: 16, overflow: 'hidden', boxShadow: T.shadowLg,
+          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          animation: 'fadeSlideUp 0.2s ease-out',
+          display: 'flex', flexDirection: 'column',
+        }}>
+          <div style={{
+            padding: '12px 14px', borderBottom: `1px solid ${T.glassBorder}`,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <span style={{ color: T.goldText, fontSize: 11, fontFamily: T.display, fontWeight: 700, letterSpacing: 2 }}>HOW TO PLAY</span>
+            <button onClick={() => setShowRules(false)} style={{
+              background: 'none', border: 'none', color: T.textDim, fontSize: 16, cursor: 'pointer', padding: '0 4px',
+            }}>✕</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', maxHeight: 380 }}>
+            {ruleSections.map((s, si) => (
+              <div key={si} style={{ marginBottom: 16 }}>
+                <div style={{
+                  color: T.goldText, fontSize: 10, letterSpacing: 2, fontFamily: T.display,
+                  fontWeight: 700, marginBottom: 6,
+                  paddingBottom: 4, borderBottom: `1px solid ${T.glassBorder}`,
+                }}>{s.title}</div>
+                {s.text && <p style={{ color: T.textSecondary, fontSize: 12, lineHeight: 1.6, fontFamily: T.body }}>{s.text}</p>}
+                {s.items && s.items.map(([label, desc], ii) => (
+                  <div key={ii} style={{ marginBottom: 6 }}>
+                    <span style={{ color: T.goldText, fontSize: 11, fontWeight: 700, fontFamily: T.body }}>{label}: </span>
+                    <span style={{ color: T.textSecondary, fontSize: 11, lineHeight: 1.5, fontFamily: T.body }}>{desc}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ─── Host Transfer Button ────────────────────────────────────────────
 function HostTransferBtn({ players, hostId, onTransfer }) {
   const [open, setOpen] = useState(false);
@@ -1811,7 +1957,6 @@ export default function App() {
               <span style={{ color: T.textDim, fontSize: 10, fontFamily: T.accent, fontStyle: 'italic' }}>{subtitle}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {isHost && <HostTransferBtn players={gs?.players} hostId={gs?.hostId ?? gs?.players?.[0]?.id} onTransfer={transferHost} />}
               <ResultsPanel history={gs?.roundHistory} />
               <DiscardLog log={gs.discardLog} cutCard={cut} />
               <span style={{ color: T.textDim, fontSize: 10, fontFamily: T.body, letterSpacing: 0.5 }}>R{gs.round} · {roomCode}</span>
@@ -1957,21 +2102,8 @@ export default function App() {
           flexWrap: 'wrap', gap: 6, position: 'relative', zIndex: 2,
           boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 30, height: 30, borderRadius: '50%',
-              background: `linear-gradient(135deg, ${T.goldMuted}, ${T.glassLight})`,
-              border: `1px solid ${T.goldBorder}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 11, fontWeight: 700, color: T.goldText, fontFamily: T.display,
-            }}>{me.name[0]?.toUpperCase()}</div>
-            <div>
-              <span style={{ color: T.textPrimary, fontSize: 14, fontWeight: 600, fontFamily: T.body }}>{me.name}</span>
-              <span style={{ color: T.goldText, fontSize: 11, marginLeft: 8, fontFamily: T.display, fontWeight: 700, letterSpacing: 1 }}>{me.score} pts</span>
-            </div>
-          </div>
+          <PlayerMenu name={me.name} score={me.score} isHost={isHost} players={gs?.players} hostId={gs?.hostId ?? gs?.players?.[0]?.id} onTransfer={transferHost} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {isHost && <HostTransferBtn players={gs?.players} hostId={gs?.hostId ?? gs?.players?.[0]?.id} onTransfer={transferHost} />}
             <ResultsPanel history={gs?.roundHistory} />
             <DiscardLog log={gs.discardLog} cutCard={cut} />
             <span style={{ color: T.textDim, fontSize: 10, fontFamily: T.body, letterSpacing: 0.5 }}>R{gs.round} · {hand.length} cards · {roomCode}</span>
@@ -2206,7 +2338,6 @@ export default function App() {
           </p>
         </div>
         <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
-        <RulesPanel />
       </div>
     );
   }
