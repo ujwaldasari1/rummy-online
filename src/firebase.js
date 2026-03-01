@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, set, get, onValue, update, remove } from 'firebase/database';
+import { getDatabase, ref, set, get, onValue, update } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FB_API_KEY,
@@ -89,21 +89,6 @@ export function onGameStateChange(code, callback) {
 export function onPlayerHandChange(code, playerId, callback) {
   return onValue(playerHandRef(code, playerId), (snap) => {
     if (snap.exists()) callback(snap.val());
-  });
-}
-
-// ─── Room Index (lightweight listing) ─────────────────────────────
-export async function saveRoomIndex(code, info) {
-  await set(ref(db, 'rooms/' + code), { ...info, _ts: Date.now() });
-}
-
-export async function removeRoomIndex(code) {
-  await remove(ref(db, 'rooms/' + code));
-}
-
-export function onRoomListChange(callback) {
-  return onValue(ref(db, 'rooms'), (snap) => {
-    callback(snap.exists() ? snap.val() : {});
   });
 }
 

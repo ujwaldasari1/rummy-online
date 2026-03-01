@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import confetti from 'canvas-confetti';
 import {
   saveGameState, savePlayerHand, loadPlayerHand, saveFullDeal,
   loadGameState, onGameStateChange, onPlayerHandChange,
-  saveRoomIndex, removeRoomIndex, onRoomListChange,
   db, ref, set, get, update,
 } from './firebase.js';
 import {
@@ -951,10 +949,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [specHand, setSpecHand] = useState([]);
   const [specGroups, setSpecGroups] = useState([]);
-  const [roomList, setRoomList] = useState({});
-  const [showBrowse, setShowBrowse] = useState(false);
   const unsubRef = useRef(null);
-  const roomListUnsubRef = useRef(null);
   const handUnsubRef = useRef(null);
   const specUnsubRef = useRef(null);
   const codeRef = useRef('');
@@ -1008,7 +1003,6 @@ export default function App() {
         _round: 0, _ts: Date.now(),
       };
       await saveGameState(code, state);
-      await saveRoomIndex(code, { code, hostName: myName.trim(), playerCount: 1, phase: 'lobby' });
       setRoomCode(code);
       subscribeToGame(code);
       setGs(state);
@@ -1044,7 +1038,6 @@ export default function App() {
         if ((state.players?.length || 0) >= 11) { setErr('Room is full!'); setLoading(false); return; }
         state.players.push({ id: myId, name: myName.trim(), score: 0, eliminated: false, spectator: true });
         await saveGameState(code, state);
-        saveRoomIndex(code, { code, hostName: (state.players.find(p => p.id === state.hostId) || state.players[0])?.name, playerCount: state.players.length, phase: state.phase });
         setRoomCode(code);
         subscribeToGame(code);
         subscribeToHand(code, myId);
@@ -1058,7 +1051,6 @@ export default function App() {
       if (!state.players.some(p => p.id === myId)) {
         state.players.push({ id: myId, name: myName.trim(), score: 0, eliminated: false });
         await saveGameState(code, state);
-        saveRoomIndex(code, { code, hostName: (state.players.find(p => p.id === state.hostId) || state.players[0])?.name, playerCount: state.players.length, phase: 'lobby' });
       }
       setRoomCode(code);
       subscribeToGame(code);
@@ -1074,7 +1066,6 @@ export default function App() {
     const state = { ...gs, players: gs.players.map(p => ({ ...p })) };
     dealNewRound(state, 0);
     await saveFullDeal(roomCode, state);
-    saveRoomIndex(roomCode, { code: roomCode, hostName: (gs.players.find(p => p.id === gs.hostId) || gs.players[0])?.name, playerCount: gs.players.length, phase: 'play' });
     subscribeToHand(roomCode, myId);
   }
 
@@ -1392,7 +1383,6 @@ export default function App() {
         state.phase = 'gameOver';
         state._ts = Date.now();
         await saveGameState(roomCode, state);
-        removeRoomIndex(roomCode);
         return;
       }
       const ai = state.players.map((p, i) => p.eliminated ? -1 : i).filter(i => i >= 0);
@@ -1599,30 +1589,6 @@ export default function App() {
     if (screen === 'lobby' && gs?.phase && gs.phase !== 'lobby') setScreen('game');
   }, [gs?.phase, screen]);
 
-  // Room list listener for browse
-  useEffect(() => {
-    if (screen === 'home' && showBrowse) {
-      roomListUnsubRef.current = onRoomListChange(setRoomList);
-    } else {
-      if (roomListUnsubRef.current) { roomListUnsubRef.current(); roomListUnsubRef.current = null; }
-    }
-    return () => { if (roomListUnsubRef.current) { roomListUnsubRef.current(); roomListUnsubRef.current = null; } };
-  }, [screen, showBrowse]);
-
-  // Confetti on valid show
-  const confettiFiredRef = useRef(null);
-  useEffect(() => {
-    if (gs?.phase === 'roundEnd' && !gs.invalidShow && gs._round !== confettiFiredRef.current) {
-      confettiFiredRef.current = gs._round;
-      const end = Date.now() + 2500;
-      (function burst() {
-        confetti({ particleCount: 80, angle: 60, spread: 55, origin: { x: 0, y: 0.7 }, colors: ['#d4af37', '#fff', '#38c172', '#e74c3c'] });
-        confetti({ particleCount: 80, angle: 120, spread: 55, origin: { x: 1, y: 0.7 }, colors: ['#d4af37', '#fff', '#38c172', '#e74c3c'] });
-        if (Date.now() < end) requestAnimationFrame(burst);
-      })();
-    }
-  }, [gs?.phase, gs?._round, gs?.invalidShow]);
-
   // Turn notification: sound + vibration
   useEffect(() => {
     const wasMy = prevTurnRef.current;
@@ -1788,65 +1754,6 @@ export default function App() {
             <button onClick={joinRoom} disabled={loading} style={{ ...outBtn, width: '100%', padding: '14px 36px' }}>{loading ? '...' : 'JOIN ROOM'}</button>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '18px 0 8px' }}>
-            <div style={{ flex: 1, height: 1, background: `linear-gradient(to right, transparent, ${T.glassBorder}, transparent)` }} />
-            <button onClick={() => setShowBrowse(!showBrowse)} style={{
-              background: 'none', border: 'none', color: T.textSecondary, fontSize: 13,
-              letterSpacing: 3, fontFamily: T.display, fontWeight: 600, cursor: 'pointer',
-              transition: 'color 0.2s ease',
-            }}>BROWSE ROOMS {showBrowse ? '▲' : '▼'}</button>
-            <div style={{ flex: 1, height: 1, background: `linear-gradient(to right, transparent, ${T.glassBorder}, transparent)` }} />
-          </div>
-
-          {showBrowse && (() => {
-            const SIX_HOURS = 6 * 60 * 60 * 1000;
-            const now = Date.now();
-            const rooms = Object.values(roomList)
-              .filter(r => r.phase !== 'gameOver' && (r.playerCount || 0) < 11 && (now - (r._ts || 0)) < SIX_HOURS)
-              .sort((a, b) => (a.phase === 'lobby' ? 0 : 1) - (b.phase === 'lobby' ? 0 : 1) || (b._ts || 0) - (a._ts || 0));
-            return (
-              <div style={{
-                marginTop: 8, maxHeight: 220, overflowY: 'auto',
-                borderRadius: T.radius.md, border: `1px solid ${T.glassBorder}`,
-                background: T.glassLight,
-              }}>
-                {rooms.length === 0 ? (
-                  <div style={{ padding: '20px 16px', textAlign: 'center', color: T.textDim, fontSize: 12, fontFamily: T.accent, fontStyle: 'italic' }}>
-                    No active rooms right now
-                  </div>
-                ) : rooms.map(r => (
-                  <div key={r.code} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '10px 14px', borderBottom: `1px solid ${T.glassBorder}20`,
-                    transition: 'background 0.15s ease',
-                  }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ color: T.goldText, fontSize: 14, fontWeight: 700, fontFamily: T.display, letterSpacing: 2 }}>{r.code}</span>
-                        <span style={{
-                          padding: '2px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700,
-                          letterSpacing: 1, fontFamily: T.display,
-                          background: r.phase === 'lobby' ? 'rgba(56,193,114,0.15)' : 'rgba(212,175,55,0.15)',
-                          color: r.phase === 'lobby' ? T.success : T.goldText,
-                          border: `1px solid ${r.phase === 'lobby' ? 'rgba(56,193,114,0.3)' : 'rgba(212,175,55,0.3)'}`,
-                        }}>{r.phase === 'lobby' ? 'LOBBY' : 'IN GAME'}</span>
-                      </div>
-                      <div style={{ color: T.textDim, fontSize: 10, fontFamily: T.body, marginTop: 2 }}>
-                        {r.hostName || 'Host'} · {r.playerCount || 1}/11 players
-                      </div>
-                    </div>
-                    <button onClick={() => { setJoinCode(r.code); }}
-                      style={{
-                        padding: '5px 14px', borderRadius: T.radius.sm, border: `1px solid ${T.goldBorder}`,
-                        background: T.goldMuted, color: T.goldText, fontSize: 10, fontWeight: 700,
-                        fontFamily: T.display, letterSpacing: 1, cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}>JOIN</button>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
         </div>
         <RulesPanel />
       </div>
@@ -2645,7 +2552,7 @@ export default function App() {
             ))}
           </div>
 
-          <button onClick={() => { removeRoomIndex(roomCode); setScreen('home'); setGs(null); setHand([]); setGroups([]); }}
+          <button onClick={() => { setScreen('home'); setGs(null); setHand([]); setGroups([]); }}
             style={{ ...goldBtn, marginTop: 28, position: 'relative' }}>
             NEW GAME
             <span style={{
