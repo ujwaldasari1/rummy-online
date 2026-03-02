@@ -92,4 +92,24 @@ export function onPlayerHandChange(code, playerId, callback) {
   });
 }
 
+// ─── Chat (separate path so writes don't overwrite game state) ────
+export function chatRef(code) {
+  return ref(db, 'chat/' + code);
+}
+
+export async function loadChat(code) {
+  const snap = await get(chatRef(code));
+  return snap.exists() ? (snap.val() || []) : [];
+}
+
+export async function saveChat(code, messages) {
+  await set(chatRef(code), messages);
+}
+
+export function onChatChange(code, callback) {
+  return onValue(chatRef(code), (snap) => {
+    callback(snap.exists() ? (snap.val() || []) : []);
+  });
+}
+
 export { db, ref, set, get, update };

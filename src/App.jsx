@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   saveGameState, savePlayerHand, loadPlayerHand, saveFullDeal,
   loadGameState, onGameStateChange, onPlayerHandChange,
+  gameRef, loadChat, saveChat, onChatChange,
   db, ref, set, get, update,
 } from './firebase.js';
 import {
@@ -1109,9 +1110,11 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [specHand, setSpecHand] = useState([]);
   const [specGroups, setSpecGroups] = useState([]);
+  const [chat, setChat] = useState([]);
   const unsubRef = useRef(null);
   const handUnsubRef = useRef(null);
   const specUnsubRef = useRef(null);
+  const chatUnsubRef = useRef(null);
   const codeRef = useRef('');
   const actionLock = useRef(false);
 
@@ -1130,6 +1133,7 @@ export default function App() {
       if (unsubRef.current) unsubRef.current();
       if (handUnsubRef.current) handUnsubRef.current();
       if (specUnsubRef.current) specUnsubRef.current();
+      if (chatUnsubRef.current) chatUnsubRef.current();
     };
   }, []);
 
@@ -1149,6 +1153,11 @@ export default function App() {
     });
   }
 
+  function subscribeToChat(code) {
+    if (chatUnsubRef.current) chatUnsubRef.current();
+    chatUnsubRef.current = onChatChange(code, (msgs) => { setChat(msgs); });
+  }
+
   // ── Create Room ──
   async function createRoom() {
     if (!myName.trim()) { setErr('Enter your name'); return; }
@@ -1166,6 +1175,7 @@ export default function App() {
       await saveGameState(code, state);
       setRoomCode(code);
       subscribeToGame(code);
+      subscribeToChat(code);
       setGs(state);
       setScreen('lobby');
     } catch (e) { setErr('Failed to create room: ' + e.message); }
@@ -1187,6 +1197,7 @@ export default function App() {
       if (existingPlayer) {
         setRoomCode(code);
         subscribeToGame(code);
+        subscribeToChat(code);
         subscribeToHand(code, myId);
         setGs(state);
         setScreen(state.phase === 'lobby' ? 'lobby' : 'game');
@@ -1194,13 +1205,15 @@ export default function App() {
         return;
       }
 
-      // Late join — spectator until next round
+      // Late join — spectator until next round (targeted update — does NOT overwrite game state)
       if (state.phase !== 'lobby') {
         if ((state.players?.length || 0) >= 11) { setErr('Room is full!'); setLoading(false); return; }
         state.players.push({ id: myId, name: myName.trim(), score: 0, eliminated: false, spectator: true });
-        await saveGameState(code, state);
+        const cleanPlayers = state.players.map(p => ({ ...p, hand: null, groups: null }));
+        await update(gameRef(code), { players: cleanPlayers, _ts: Date.now() });
         setRoomCode(code);
         subscribeToGame(code);
+        subscribeToChat(code);
         subscribeToHand(code, myId);
         setGs(state);
         setScreen('game');
@@ -1211,10 +1224,12 @@ export default function App() {
       if ((state.players?.length || 0) >= 11) { setErr('Room is full!'); setLoading(false); return; }
       if (!state.players.some(p => p.id === myId)) {
         state.players.push({ id: myId, name: myName.trim(), score: 0, eliminated: false });
-        await saveGameState(code, state);
+        const cleanPlayers = state.players.map(p => ({ ...p, hand: null, groups: null }));
+        await update(gameRef(code), { players: cleanPlayers, _ts: Date.now() });
       }
       setRoomCode(code);
       subscribeToGame(code);
+      subscribeToChat(code);
       setGs(state);
       setScreen('lobby');
     } catch (e) { setErr('Failed to join: ' + e.message); }
@@ -1230,11 +1245,9 @@ export default function App() {
     subscribeToHand(roomCode, myId);
   }
 
-  // ── Transfer Host ──
+  // ── Transfer Host (targeted update — does NOT overwrite game state) ──
   async function transferHost(targetId) {
-    const state = { ...gs, players: gs.players.map(p => ({ ...p })) };
-    state.hostId = targetId;
-    await saveGameState(roomCode, state);
+    await update(gameRef(roomCode), { hostId: targetId, _ts: Date.now() });
   }
 
   // ── Perform Cut ──
@@ -1628,17 +1641,14 @@ export default function App() {
 
   function getGCards(gids) { return gids.map(id => hand.find(c => c.id === id)).filter(Boolean); }
 
-  // ── Chat ──
+  // ── Chat (separate Firebase path — does NOT touch game state) ──
   async function sendChat(text) {
     try {
-      const state = await loadGameState(roomCode);
-      if (!state) return;
-      if (!state.chat) state.chat = [];
-      state.chat.push({ senderName: myName, text, ts: Date.now() });
+      const msgs = await loadChat(roomCode);
+      msgs.push({ senderName: myName, text, ts: Date.now() });
       // Keep last 100 messages
-      if (state.chat.length > 100) state.chat = state.chat.slice(-100);
-      state._ts = Date.now();
-      await saveGameState(roomCode, state);
+      if (msgs.length > 100) msgs.splice(0, msgs.length - 100);
+      await saveChat(roomCode, msgs);
     } catch (e) { /* silently fail */ }
   }
 
@@ -2240,7 +2250,7 @@ export default function App() {
             </div>
           )}
 
-          <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
+          <ChatPanel chat={chat} onSend={sendChat} myName={myName} />
         <RulesPanel />
         </div>
       );
@@ -2508,7 +2518,7 @@ export default function App() {
               : 'Hold & drag to rearrange · Tap to select'}
           </p>
         </div>
-        <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
+        <ChatPanel chat={chat} onSend={sendChat} myName={myName} />
       </div>
     );
   }
@@ -2661,7 +2671,7 @@ export default function App() {
             <div style={{ marginTop: 24, color: T.textDim, fontSize: 13, textAlign: 'center', fontFamily: T.accent, fontStyle: 'italic', animation: 'pulse 2s infinite' }}>Waiting for host...</div>
           )}
         </div>
-        <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
+        <ChatPanel chat={chat} onSend={sendChat} myName={myName} />
         <RulesPanel />
       </div>
     );
@@ -2732,7 +2742,7 @@ export default function App() {
             }} />
           </button>
         </div>
-        <ChatPanel chat={gs?.chat} onSend={sendChat} myName={myName} />
+        <ChatPanel chat={chat} onSend={sendChat} myName={myName} />
         <RulesPanel />
       </div>
     );
