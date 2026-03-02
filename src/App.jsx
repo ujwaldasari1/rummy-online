@@ -1113,6 +1113,7 @@ export default function App() {
   const handUnsubRef = useRef(null);
   const specUnsubRef = useRef(null);
   const codeRef = useRef('');
+  const actionLock = useRef(false);
 
   // Drag state
   const [dragCard, setDragCard] = useState(null);
@@ -1255,6 +1256,8 @@ export default function App() {
 
   // ── Draw from Stock ──
   async function drawFromStock() {
+    if (actionLock.current) return;
+    actionLock.current = true;
     try {
       const state = await loadGameState(roomCode);
       if (!state) return;
@@ -1285,11 +1288,13 @@ export default function App() {
         newGroups.push([card.id]);
       }
       await savePlayerHand(roomCode, myId, newHand, newGroups);
-    } catch (e) { setErr('Error: ' + e.message); }
+    } catch (e) { setErr('Error: ' + e.message); } finally { actionLock.current = false; }
   }
 
   // ── Draw from Discard ──
   async function drawFromDiscard() {
+    if (actionLock.current) return;
+    actionLock.current = true;
     try {
       const state = await loadGameState(roomCode);
       if (!state || !state.discardPile?.length) return;
@@ -1317,11 +1322,13 @@ export default function App() {
         newGroups.push([card.id]);
       }
       await savePlayerHand(roomCode, myId, newHand, newGroups);
-    } catch (e) { setErr('Error: ' + e.message); }
+    } catch (e) { setErr('Error: ' + e.message); } finally { actionLock.current = false; }
   }
 
   // ── Drop / Pack ──
   async function dropPack() {
+    if (actionLock.current) return;
+    actionLock.current = true;
     try {
       const state = await loadGameState(roomCode);
       if (!state) return;
@@ -1377,12 +1384,14 @@ export default function App() {
       state._ts = Date.now();
       await saveGameState(roomCode, state);
       setErr('');
-    } catch (e) { setErr('Error: ' + e.message); }
+    } catch (e) { setErr('Error: ' + e.message); } finally { actionLock.current = false; }
   }
 
   // ── Discard (select 1, tap DISCARD) ──
   async function discardSelected() {
     if (sel.size !== 1) { setErr('Select exactly 1 card to discard'); return; }
+    if (actionLock.current) return;
+    actionLock.current = true;
     const cardId = [...sel][0];
     try {
       const state = await loadGameState(roomCode);
@@ -1411,12 +1420,14 @@ export default function App() {
       const newGroups = groups.map(g => g.filter(id => id !== cardId)).filter(g => g.length);
       await savePlayerHand(roomCode, myId, newHand, newGroups);
       setSel(new Set());
-    } catch (e) { setErr('Error: ' + e.message); }
+    } catch (e) { setErr('Error: ' + e.message); } finally { actionLock.current = false; }
   }
 
   // ── Declare Show ──
   async function declareShow() {
     if (sel.size !== 1) { setErr('Select exactly 1 card to discard, then SHOW!'); return; }
+    if (actionLock.current) return;
+    actionLock.current = true;
     try {
       const state = await loadGameState(roomCode);
       if (!state || !state.drawn) { setErr('Draw a card first!'); return; }
@@ -1508,7 +1519,7 @@ export default function App() {
       await saveGameState(roomCode, state);
       await savePlayerHand(roomCode, myId, remHand, remGroups);
       setSel(new Set());
-    } catch (e) { setErr('Error: ' + e.message); }
+    } catch (e) { setErr('Error: ' + e.message); } finally { actionLock.current = false; }
   }
 
   // ── Next Round (clears spectator flag) ──
