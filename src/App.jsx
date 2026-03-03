@@ -1208,7 +1208,8 @@ export default function App() {
       // Late join — spectator until next round (targeted update — does NOT overwrite game state)
       if (state.phase !== 'lobby') {
         if ((state.players?.length || 0) >= 11) { setErr('Room is full!'); setLoading(false); return; }
-        state.players.push({ id: myId, name: myName.trim(), score: 0, eliminated: false, spectator: true });
+        const highestScore = Math.max(0, ...state.players.filter(p => !p.eliminated).map(p => p.score));
+        state.players.push({ id: myId, name: myName.trim(), score: highestScore, eliminated: false, spectator: true });
         const cleanPlayers = state.players.map(p => ({ ...p, hand: null, groups: null }));
         await update(gameRef(code), { players: cleanPlayers, _ts: Date.now() });
         setRoomCode(code);
@@ -1360,7 +1361,7 @@ export default function App() {
       if (!state.packedPenalties) state.packedPenalties = {};
       state.packedPenalties[myId] = penalty;
 
-      const ai = state.players.map((p, i) => (!p.eliminated ? i : -1)).filter(i => i >= 0);
+      const ai = state.players.map((p, i) => (!p.eliminated && !p.spectator) ? i : -1).filter(i => i >= 0);
       const playing = ai.filter(i => !(state.packed || []).includes(state.players[i].id));
 
       if (playing.length <= 1) {
@@ -1421,7 +1422,7 @@ export default function App() {
       if (!state.discardLog) state.discardLog = [];
       state.discardLog.push({ player: state.players[myIdx].name, card, action: 'threw' });
 
-      const ai = state.players.map((p, i) => p.eliminated ? -1 : i).filter(i => i >= 0);
+      const ai = state.players.map((p, i) => (!p.eliminated && !p.spectator) ? i : -1).filter(i => i >= 0);
       const playing = ai.filter(i => !(state.packed || []).includes(state.players[i].id));
       const ci = playing.indexOf(myIdx);
       state.currentPlayer = playing[(ci + 1) % playing.length];
@@ -1456,7 +1457,7 @@ export default function App() {
       const remHand = hand.filter(c => c.id !== discId);
       const remGroups = groups.map(g => g.filter(id => id !== discId)).filter(g => g.length);
       const meldGroups = remGroups.map(g => g.map(id => remHand.find(c => c.id === id)).filter(Boolean));
-      const activeCount = state.players.filter(p => !p.eliminated).length;
+      const activeCount = state.players.filter(p => !p.eliminated && !p.spectator).length;
       const result = validateShow(meldGroups, state.cutCard);
       // In 3+ deck games (>7 players), also allow all-sets show with a pure quadruplet
       if (!result.valid && activeCount > 7) {
@@ -2181,16 +2182,18 @@ export default function App() {
 
           {/* Players */}
           <div style={{ padding: '10px 16px', position: 'relative', zIndex: 1 }}>
-            {gs.players.filter(p => !p.eliminated && !p.spectator).map((p, idx) => {
+            {gs.players.filter(p => !p.eliminated).map((p, idx) => {
               const isPacked = (gs.packed || []).includes(p.id);
-              const isCur = p.id === gs.players[gs.currentPlayer]?.id;
+              const isCur = !p.spectator && p.id === gs.players[gs.currentPlayer]?.id;
+              const isSpec = p.spectator;
               return (
                 <div key={p.id} style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px',
                   marginBottom: 4, borderRadius: 10,
-                  background: isCur ? 'rgba(56,193,114,0.1)' : isPacked ? 'rgba(142,106,58,0.08)' : 'rgba(0,0,0,0.15)',
-                  border: `1px solid ${isCur ? 'rgba(56,193,114,0.25)' : 'transparent'}`,
+                  background: isCur ? 'rgba(56,193,114,0.1)' : isPacked ? 'rgba(142,106,58,0.08)' : isSpec ? 'rgba(93,173,226,0.06)' : 'rgba(0,0,0,0.15)',
+                  border: `1px solid ${isCur ? 'rgba(56,193,114,0.25)' : isSpec ? 'rgba(93,173,226,0.15)' : 'transparent'}`,
                   animation: isCur ? 'breathe 2s ease-in-out infinite' : 'none',
+                  opacity: isSpec ? 0.6 : 1,
                   transition: 'all 0.3s ease',
                 }}>
                   <div style={{
@@ -2203,10 +2206,11 @@ export default function App() {
                   }}>{isCur ? '▶' : p.name[0]?.toUpperCase()}</div>
                   <div style={{ flex: 1 }}>
                     <span style={{
-                      color: isPacked ? '#8e6a3a' : isCur ? T.success : T.textSecondary,
+                      color: isPacked ? '#8e6a3a' : isCur ? T.success : isSpec ? '#5dade2' : T.textSecondary,
                       fontSize: 13, fontWeight: isCur ? 700 : 500, fontFamily: T.body,
                       textDecoration: isPacked ? 'line-through' : 'none',
                     }}>{p.name}</span>
+                    {isSpec && <span style={{ color: '#5dade2', fontSize: 10, marginLeft: 6, fontFamily: T.accent, fontStyle: 'italic' }}>spectating</span>}
                   </div>
                   <span style={{
                     color: T.goldText, fontSize: 12, fontFamily: T.display, fontWeight: 600,
@@ -2311,20 +2315,22 @@ export default function App() {
 
         {/* Mini scores */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: 6, padding: '4px 12px', flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
-          {gs.players.filter(p => !p.eliminated && !p.spectator).map(p => {
+          {gs.players.filter(p => !p.eliminated).map(p => {
             const isPacked = (gs.packed || []).includes(p.id);
-            const isCurrent = p.id === gs.players[gs.currentPlayer]?.id;
+            const isCurrent = !p.spectator && p.id === gs.players[gs.currentPlayer]?.id;
+            const isSpec = p.spectator;
             return (
               <span key={p.id} style={{
                 fontSize: 10, padding: '4px 10px', borderRadius: 12,
-                background: isCurrent ? 'rgba(56,193,114,0.12)' : isPacked ? 'rgba(142,106,58,0.12)' : 'rgba(0,0,0,0.3)',
-                color: isCurrent ? T.success : isPacked ? '#8e6a3a' : T.textMuted,
-                border: `1px solid ${isCurrent ? 'rgba(56,193,114,0.25)' : 'rgba(255,255,255,0.04)'}`,
+                background: isCurrent ? 'rgba(56,193,114,0.12)' : isPacked ? 'rgba(142,106,58,0.12)' : isSpec ? 'rgba(93,173,226,0.08)' : 'rgba(0,0,0,0.3)',
+                color: isCurrent ? T.success : isPacked ? '#8e6a3a' : isSpec ? '#5dade2' : T.textMuted,
+                border: `1px solid ${isCurrent ? 'rgba(56,193,114,0.25)' : isSpec ? 'rgba(93,173,226,0.15)' : 'rgba(255,255,255,0.04)'}`,
                 textDecoration: isPacked ? 'line-through' : 'none',
+                opacity: isSpec ? 0.65 : 1,
                 fontFamily: T.body, fontWeight: 600,
                 transition: 'all 0.3s ease', letterSpacing: 0.3,
                 backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
-              }}>{p.name}: {p.score}{isPacked ? ' 🏳️' : ''}</span>
+              }}>{p.name}: {p.score}{isPacked ? ' 🏳️' : ''}{isSpec ? ' (watching)' : ''}</span>
             );
           })}
         </div>

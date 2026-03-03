@@ -206,13 +206,13 @@ export function calcPenalty(groups, cut) {
 
 // ─── Dealing ─────────────────────────────────────────────────────────
 export function dealNewRound(state, dealerIdx) {
-  const active = state.players.filter(p => !p.eliminated);
+  const active = state.players.filter(p => !p.eliminated && !p.spectator);
   const numDecks = active.length > 7 ? 3 : 2;
   const deck = shuffle(createDeck(numDecks));
   let idx = 0;
   if (active.length <= 1) { state.phase = 'gameOver'; return state; }
   state.players = state.players.map(p => {
-    if (p.eliminated) return { ...p, hand: [], groups: [] };
+    if (p.eliminated || p.spectator) return { ...p, hand: [], groups: [] };
     const h = sortHand(deck.slice(idx, idx + 13));
     idx += 13;
     return { ...p, hand: h, groups: [h.map(c => c.id)] };
@@ -232,7 +232,7 @@ export function dealNewRound(state, dealerIdx) {
   state.packed = [];
   state.discardLog = [];
   state._round = (state._round || 0) + 1;
-  const ai = state.players.map((p, i) => p.eliminated ? -1 : i).filter(i => i >= 0);
+  const ai = state.players.map((p, i) => (!p.eliminated && !p.spectator) ? i : -1).filter(i => i >= 0);
   const dp = ai.indexOf(dealerIdx);
   const cp = dp <= 0 ? ai.length - 1 : dp - 1;
   state.cutterIdx = ai[cp];
