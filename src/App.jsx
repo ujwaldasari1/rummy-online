@@ -1268,6 +1268,52 @@ export default function App() {
     setLoading(false);
   }
 
+  // ── 7-player force-pack check (returns true if player was force-packed) ──
+  async function checkAndForcePack(state, myIdx) {
+    const activeCount = state.players.filter(p => !p.eliminated && !p.spectator).length;
+    const drawnCount = (state.hasDrawnOnce || []).length;
+    const packedCount = (state.packed || []).length;
+    if (activeCount !== 7 || drawnCount !== 6 || packedCount !== 0) return false;
+
+    // Force pack this player with 0 penalty
+    if (!state.packed) state.packed = [];
+    state.packed.push(myId);
+    if (!state.packedPenalties) state.packedPenalties = {};
+    state.packedPenalties[myId] = 0;
+
+    const ai = state.players.map((p, i) => (!p.eliminated && !p.spectator) ? i : -1).filter(i => i >= 0);
+    const playing = ai.filter(i => !(state.packed || []).includes(state.players[i].id));
+    if (playing.length <= 1) {
+      const winnerId = playing.length === 1 ? playing[0] : null;
+      const roundHands = {};
+      await Promise.all(state.players.map(async (p) => {
+        if (p.eliminated || p.spectator) return;
+        const ph = await loadPlayerHand(roomCode, p.id);
+        if (ph?.hand) roundHands[p.id] = { hand: ph.hand, groups: ph.groups || [ph.hand.map(c => c.id)] };
+      }));
+      state.roundHands = roundHands;
+      state.roundResults = state.players.map((p, i) => {
+        if (p.eliminated) return { name: p.name, penalty: 0, elim: true, wasElim: false };
+        if (winnerId !== null && i === winnerId) return { name: p.name, penalty: 0, newScore: p.score, elim: false, wasElim: false, winner: true };
+        if ((state.packed || []).includes(p.id)) { const pp = (state.packedPenalties || {})[p.id] ?? DROP_PENALTY; return { name: p.name, penalty: pp, newScore: p.score, elim: false, wasElim: p.score >= ELIM_SCORE, packed: true }; }
+        return { name: p.name, penalty: 0, newScore: p.score, elim: false, wasElim: false };
+      });
+      state.declarer = winnerId;
+      state.phase = 'roundEnd';
+      state.invalidShow = false;
+    } else {
+      const ci = ai.indexOf(myIdx);
+      let next = ci;
+      do { next = (next + 1) % ai.length; }
+      while ((state.packed || []).includes(state.players[ai[next]].id) || state.players[ai[next]].eliminated || state.players[ai[next]].spectator);
+      state.currentPlayer = ai[next];
+    }
+    state.drawn = false;
+    state._ts = Date.now();
+    await saveGameState(roomCode, state);
+    return true;
+  }
+
   // ── Draw from Stock ──
   async function drawFromStock() {
     if (actionLock.current) return;
@@ -1277,10 +1323,24 @@ export default function App() {
       if (!state) return;
       const myIdx = state.players.findIndex(p => p.id === myId);
       if (state.currentPlayer !== myIdx || state.drawn) return;
+      if (await checkAndForcePack(state, myIdx)) return;
       let card;
       if (!state.stockPile || state.stockPile.length === 0) {
-        const ns = shuffle(state.discardPile.slice(0, -1));
-        state.discardPile = [state.discardPile[state.discardPile.length - 1]];
+        // Reshuffle: discard pile (minus top card) + all packed players' hands
+        const topDiscard = state.discardPile[state.discardPile.length - 1];
+        let pool = state.discardPile.slice(0, -1);
+        if (!state.cardsReturnedToDeck) state.cardsReturnedToDeck = [];
+        const packedIds = state.packed || [];
+        for (const pid of packedIds) {
+          const ph = await loadPlayerHand(roomCode, pid);
+          if (ph?.hand?.length) {
+            pool = [...pool, ...ph.hand];
+            if (!state.cardsReturnedToDeck.includes(pid)) state.cardsReturnedToDeck.push(pid);
+            await savePlayerHand(roomCode, pid, [], []);
+          }
+        }
+        const ns = shuffle(pool);
+        state.discardPile = [topDiscard];
         card = ns.pop();
         state.stockPile = ns;
       } else {
@@ -1314,6 +1374,7 @@ export default function App() {
       if (!state || !state.discardPile?.length) return;
       const myIdx = state.players.findIndex(p => p.id === myId);
       if (state.currentPlayer !== myIdx || state.drawn) return;
+      if (await checkAndForcePack(state, myIdx)) return;
       const card = state.discardPile.pop();
 
       // Log the pickup
@@ -2609,7 +2670,21 @@ export default function App() {
                 </div>
                 {gs.players.map((p, pi) => {
                   const rh = gs.roundHands[p.id];
-                  if (!rh || !rh.hand || !rh.hand.length) return null;
+                  const returnedToDeck = (gs.cardsReturnedToDeck || []).includes(p.id);
+                  if (!rh || !rh.hand || !rh.hand.length) {
+                    if (!returnedToDeck) return null;
+                    return (
+                      <div key={p.id} style={{
+                        marginBottom: 8, padding: '10px 14px', borderRadius: 12,
+                        background: 'rgba(142,106,58,0.08)', border: `1px solid rgba(142,106,58,0.15)`,
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        animation: `fadeSlideUp ${0.2 + pi * 0.08}s ease-out`,
+                      }}>
+                        <span style={{ color: T.textSecondary, fontSize: 12, fontWeight: 700, fontFamily: T.body }}>{p.name}</span>
+                        <span style={{ color: '#8e6a3a', fontSize: 11, fontFamily: T.accent, fontStyle: 'italic' }}>· cards returned to deck</span>
+                      </div>
+                    );
+                  }
                   const isDeclarer = pi === gs.declarer;
                   const isWinner = gs.roundResults?.[pi]?.winner;
                   const playerGroups = (rh.groups || [rh.hand.map(c => c.id)]).map(gids =>

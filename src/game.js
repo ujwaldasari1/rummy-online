@@ -231,6 +231,7 @@ export function dealNewRound(state, dealerIdx) {
   state.hasDrawnOnce = [];
   state.packed = [];
   state.discardLog = [];
+  state.cardsReturnedToDeck = [];
   state._round = (state._round || 0) + 1;
   const ai = state.players.map((p, i) => (!p.eliminated && !p.spectator) ? i : -1).filter(i => i >= 0);
   const dp = ai.indexOf(dealerIdx);
