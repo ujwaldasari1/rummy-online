@@ -1352,10 +1352,10 @@ export default function App() {
       state._ts = Date.now();
       await saveGameState(roomCode, state);
 
-      // Add drawn card as its own new group at the end (avoids breaking existing valid groups)
+      // Add drawn card as group 0 (top); push existing groups down
       const myHand = await loadPlayerHand(roomCode, myId);
       const newHand = [...(myHand?.hand || hand), card];
-      const newGroups = [...(myHand?.groups || groups), [card.id]];
+      const newGroups = [[card.id], ...(myHand?.groups || groups)];
       await savePlayerHand(roomCode, myId, newHand, newGroups);
     } catch (e) { setErr('Error: ' + e.message); } finally { actionLock.current = false; }
   }
@@ -1382,10 +1382,10 @@ export default function App() {
       state._ts = Date.now();
       await saveGameState(roomCode, state);
 
-      // Add drawn card as its own new group at the end (avoids breaking existing valid groups)
+      // Add drawn card as group 0 (top); push existing groups down
       const myHand = await loadPlayerHand(roomCode, myId);
       const newHand = [...(myHand?.hand || hand), card];
-      const newGroups = [...(myHand?.groups || groups), [card.id]];
+      const newGroups = [[card.id], ...(myHand?.groups || groups)];
       await savePlayerHand(roomCode, myId, newHand, newGroups);
     } catch (e) { setErr('Error: ' + e.message); } finally { actionLock.current = false; }
   }
