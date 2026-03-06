@@ -185,6 +185,22 @@ export function validateSetsShow(groups, cut) {
   return { valid: allSets && hasPureQuad, vs };
 }
 
+export function whyInvalid(cards, cut) {
+  if (cards.length < 3) return '< 3 cards';
+  const nj = cards.filter(c => !isJkr(c, cut));
+  if (!nj.length) return 'all jokers';
+  const ranks = [...new Set(nj.map(c => c.rank))];
+  if (ranks.length === 1) {
+    const suitArr = nj.map(c => c.suit);
+    if (new Set(suitArr).size < suitArr.length) return 'dup suit in set';
+    if (cards.length > 4) return '> 4 cards';
+    return 'invalid';
+  }
+  const suits = [...new Set(nj.map(c => c.suit))];
+  if (suits.length > 1) return 'mixed suits';
+  return 'not consecutive';
+}
+
 export function calcPenalty(groups, cut) {
   const vs = groups.map(g => ({ cards: g, ...validateMeld(g, cut) }));
   const hasPure = vs.some(v => v.type === 'pure');

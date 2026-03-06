@@ -9,7 +9,7 @@ import {
   SUITS, SUIT_COLORS, SUIT_COLOR_GROUP, OPPOSITE_SUITS, RANKS,
   RANK_VALUES, RANK_ORDER, MAX_PENALTY, ELIM_SCORE, DROP_PENALTY, MIDDLE_DROP_PENALTY,
   createDeck, shuffle, sortHand, sortGroupByValue, isWild, isJkr, cardVal,
-  validateMeld, validateShow, validateSetsShow, calcPenalty, dealNewRound,
+  validateMeld, validateShow, validateSetsShow, calcPenalty, whyInvalid, dealNewRound,
   genCode, genId,
 } from './game.js';
 
@@ -852,7 +852,7 @@ function PlayerMenu({ name, score, isHost, players, hostId, onTransfer, history 
                                         color: m.ok ? T.success : T.textDim, fontSize: 8,
                                         letterSpacing: 1, fontWeight: 600, fontFamily: T.body,
                                       }}>
-                                        {m.ok ? (m.type === 'pure' ? '✓ PURE' : m.type === 'impure' ? '✓ SEQ' : '✓ SET') : 'UNMELDED'}
+                                        {m.ok ? (m.type === 'pure' ? '✓ PURE' : m.type === 'impure' ? '✓ SEQ' : '✓ SET') : `UNMELDED (${whyInvalid(groupCards, r.cutCard)})`}
                                       </span>
                                       <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginTop: 2 }}>
                                         {groupCards.map(card => (
@@ -1067,7 +1067,7 @@ function ResultsPanel({ history }) {
                                         color: m.ok ? T.success : T.textDim, fontSize: 8,
                                         letterSpacing: 1, fontWeight: 600, fontFamily: T.body,
                                       }}>
-                                        {m.ok ? (m.type === 'pure' ? '✓ PURE' : m.type === 'impure' ? '✓ SEQ' : '✓ SET') : 'UNMELDED'}
+                                        {m.ok ? (m.type === 'pure' ? '✓ PURE' : m.type === 'impure' ? '✓ SEQ' : '✓ SET') : `UNMELDED (${whyInvalid(groupCards, r.cutCard)})`}
                                       </span>
                                       <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginTop: 2 }}>
                                         {groupCards.map(card => (
@@ -1352,15 +1352,10 @@ export default function App() {
       state._ts = Date.now();
       await saveGameState(roomCode, state);
 
-      // Add card to GROUP 1 (first group)
+      // Add drawn card as its own new group at the end (avoids breaking existing valid groups)
       const myHand = await loadPlayerHand(roomCode, myId);
       const newHand = [...(myHand?.hand || hand), card];
-      const newGroups = [...(myHand?.groups || groups)];
-      if (newGroups.length > 0) {
-        newGroups[0] = [card.id, ...newGroups[0]];
-      } else {
-        newGroups.push([card.id]);
-      }
+      const newGroups = [...(myHand?.groups || groups), [card.id]];
       await savePlayerHand(roomCode, myId, newHand, newGroups);
     } catch (e) { setErr('Error: ' + e.message); } finally { actionLock.current = false; }
   }
@@ -1387,15 +1382,10 @@ export default function App() {
       state._ts = Date.now();
       await saveGameState(roomCode, state);
 
-      // Add card to GROUP 1
+      // Add drawn card as its own new group at the end (avoids breaking existing valid groups)
       const myHand = await loadPlayerHand(roomCode, myId);
       const newHand = [...(myHand?.hand || hand), card];
-      const newGroups = [...(myHand?.groups || groups)];
-      if (newGroups.length > 0) {
-        newGroups[0] = [card.id, ...newGroups[0]];
-      } else {
-        newGroups.push([card.id]);
-      }
+      const newGroups = [...(myHand?.groups || groups), [card.id]];
       await savePlayerHand(roomCode, myId, newHand, newGroups);
     } catch (e) { setErr('Error: ' + e.message); } finally { actionLock.current = false; }
   }
@@ -2721,7 +2711,7 @@ export default function App() {
                               color: m.ok ? T.success : T.textDim, fontSize: 9,
                               letterSpacing: 1, fontWeight: 600, fontFamily: T.body,
                             }}>
-                              {m.ok ? (m.type === 'pure' ? '✓ PURE SEQ' : m.type === 'impure' ? '✓ SEQUENCE' : '✓ SET') : 'UNMELDED'}
+                              {m.ok ? (m.type === 'pure' ? '✓ PURE SEQ' : m.type === 'impure' ? '✓ SEQUENCE' : '✓ SET') : `UNMELDED (${whyInvalid(groupCards, cut)})`}
                             </span>
                             <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginTop: 3 }}>
                               {groupCards.map(card => (
