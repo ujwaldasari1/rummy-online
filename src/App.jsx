@@ -1498,15 +1498,20 @@ export default function App() {
       if (!state || !state.drawn) { setErr('Draw a card first!'); return; }
       const myIdx = state.players.findIndex(p => p.id === myId);
       if (state.currentPlayer !== myIdx) return;
-      if (hand.length !== 14) { setErr('Need 14 cards!'); return; }
       // Cannot show on first turn — must have discarded at least once before
       const myDiscards = (state.discardLog || []).filter(e => e.player === state.players[myIdx].name && e.action === 'threw');
       if (myDiscards.length === 0) { setErr('Cannot show on your first turn!'); return; }
 
       const discId = [...sel][0];
-      const discC = hand.find(c => c.id === discId);
-      const remHand = hand.filter(c => c.id !== discId);
-      const remGroups = groups.map(g => g.filter(id => id !== discId)).filter(g => g.length);
+      // Load authoritative hand from Firebase (avoids stale React state)
+      const myHandData = await loadPlayerHand(roomCode, myId);
+      const authHand = myHandData?.hand || hand;
+      const authGroups = myHandData?.groups || groups;
+      if (authHand.length !== 14) { setErr('Need 14 cards!'); return; }
+      const discC = authHand.find(c => c.id === discId);
+      if (!discC) { setErr('Card not found in hand!'); return; }
+      const remHand = authHand.filter(c => c.id !== discId);
+      const remGroups = authGroups.map(g => g.filter(id => id !== discId)).filter(g => g.length);
       const meldGroups = remGroups.map(g => g.map(id => remHand.find(c => c.id === id)).filter(Boolean));
       const activeCount = state.players.filter(p => !p.eliminated && !p.spectator).length;
       const result = validateShow(meldGroups, state.cutCard);
